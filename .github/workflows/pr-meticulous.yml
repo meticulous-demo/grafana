@@ -4,11 +4,11 @@ on:
   push:
     branches:
       - main
-  pull_request: {}
+  pull_request:
   # Important: We need the workflow to be triggered on workflow_dispatch events,
   # so that Meticulous can run the workflow on the base commit to compare
   # against if an existing workflow hasn't run
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,17 +18,17 @@ permissions: {}
 
 jobs:
   detect-changes:
-    # Skip when the API token isn't available (fork PRs never receive repo secrets).
     # Always run on push to main / workflow_dispatch (needed for base comparison runs).
     # On pull_request, only same-repo non-draft PRs.
-    if: ${{ secrets.METICULOUS_API_TOKEN != '' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false)) }}
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false)
     name: Detect whether code changed
     runs-on: ubuntu-latest-16-cores
     permissions:
       contents: read
     outputs:
       # Build when non-test frontend changes: Meticulous only exercises the UI.
-      frontend-src: ${{ steps.detect-changes.outputs.frontend-src }}
+      # On push/workflow_dispatch always treat as changed so base runs aren't skipped.
+      frontend-src: ${{ github.event_name == 'pull_request' && steps.detect-changes.outputs.frontend-src || 'true' }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -37,6 +37,7 @@ jobs:
           filter: blob:none
       - name: Detect changes
         id: detect-changes
+        if: github.event_name == 'pull_request'
         uses: ./.github/actions/change-detection
         with:
           self: .github/workflows/pr-meticulous.yml
