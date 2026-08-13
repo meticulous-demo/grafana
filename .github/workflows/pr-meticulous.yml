@@ -1,14 +1,13 @@
 name: Meticulous
 
 on:
-  pull_request:
-    # Include ready_for_review so the draft gate below re-evaluates when a draft
-    # is marked ready without a new push (default types omit that event).
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
+  push:
+    branches:
+      - main
+  pull_request: {}
+  # Important: We need the workflow to be triggered on workflow_dispatch events,
+  # so that Meticulous can run the workflow on the base commit to compare
+  # against if an existing workflow hasn't run
   workflow_dispatch: {}
 
 concurrency:
@@ -19,13 +18,20 @@ permissions: {}
 
 jobs:
   detect-changes:
-    # Skip when the API token isn't available (fork PRs never receive repo secrets),
-    # when the PR is from another repo, or when the PR is still a draft.
+    # Skip when the API token isn't available (fork PRs never receive repo secrets).
+    # Always run on push to main / workflow_dispatch (needed for base comparison runs).
+    # On pull_request, only same-repo non-draft PRs.
     if: |
       secrets.METICULOUS_API_TOKEN != '' &&
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.draft == false
+      (
+        github.event_name == 'push' ||
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          github.event.pull_request.draft == false
+        )
+      )
     name: Detect whether code changed
     runs-on: ubuntu-latest-16-cores
     permissions:
