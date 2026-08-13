@@ -36,10 +36,10 @@ jobs:
           self: .github/workflows/swagger-gen.yml
 
   verify:
+    if: false  # disabled: requires Grafana GitHub App / enterprise token
     name: Verify committed API specs match
     runs-on: ubuntu-arm64
     needs: detect-changes
-    if: github.repository == 'grafana/grafana' && needs.detect-changes.outputs.changed == 'true'
     permissions:
       contents: read # clone the repository
       id-token: write # required for Vault access

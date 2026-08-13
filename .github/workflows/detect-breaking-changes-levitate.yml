@@ -191,11 +191,6 @@ jobs:
     if: github.event.pull_request.head.repo.full_name == github.repository
 
     steps:
-      - name: Get GitHub App token
-        id: get-github-app-token
-        uses: grafana/shared-workflows/actions/create-github-app-token@259ba21cb3ff07724f331e26d926d655d24b317b # create-github-app-token/v0.2.3
-        with:
-          github_app: grafana-pr-automation
 
       - uses: actions/checkout@v5
         with:
@@ -260,7 +255,7 @@ jobs:
             [Read our guideline](https://github.com/grafana/grafana/blob/main/contribute/breaking-changes-guide/breaking-changes-guide.md)
 
             * Your pull request merge won't be blocked.
-          GITHUB_TOKEN: ${{ steps.get-github-app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Remove comment from the PR (no more breaking changes)
       - name: Remove comment from PR
@@ -270,7 +265,7 @@ jobs:
           header: levitate-breaking-change-comment
           number: ${{ github.event.pull_request.number }}
           delete: true
-          GITHUB_TOKEN: ${{ steps.get-github-app-token.outputs.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Send Slack Message via Payload
         id: slack
@@ -316,7 +311,7 @@ jobs:
         env:
           PR_NUMBER: ${{ steps.levitate-run.outputs.pr_number }}
         with:
-          github-token: ${{ steps.get-github-app-token.outputs.token }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             await github.rest.issues.addLabels({
               issue_number: process.env.PR_NUMBER,
@@ -332,7 +327,7 @@ jobs:
         env:
           PR_NUMBER: ${{ steps.levitate-run.outputs.pr_number }}
         with:
-          github-token: ${{ steps.get-github-app-token.outputs.token }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             await github.rest.issues.removeLabel({
               issue_number: process.env.PR_NUMBER,
@@ -352,7 +347,7 @@ jobs:
         env:
           PR_NUMBER: ${{ steps.levitate-run.outputs.pr_number }}
         with:
-          github-token: ${{ steps.get-github-app-token.outputs.token }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             await github.rest.pulls.requestReviewers({
               pull_number: process.env.PR_NUMBER,
@@ -371,7 +366,7 @@ jobs:
         env:
           PR_NUMBER: ${{ steps.levitate-run.outputs.pr_number }}
         with:
-          github-token: ${{ steps.get-github-app-token.outputs.token }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             await github.rest.pulls.removeRequestedReviewers({
               pull_number: process.env.PR_NUMBER,

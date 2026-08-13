@@ -476,7 +476,6 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: grafana/shared-workflows/actions/dockerhub-login@dockerhub-login/v1.0.2
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
@@ -599,7 +598,6 @@ jobs:
           - name: windows-arm64
             arch: arm64
     steps:
-      - uses: grafana/shared-workflows/actions/dockerhub-login@dockerhub-login/v1.0.2
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
@@ -907,7 +905,6 @@ jobs:
       environment: prod
       runs-on: ubuntu-x64-small
   run-meticulous-tests:
-    if: github.repository == 'grafana/grafana'
     name: Run Meticulous tests
     runs-on: ubuntu-x64-small
     continue-on-error: true
@@ -916,7 +913,6 @@ jobs:
     permissions:
       actions: write
       contents: read
-      id-token: write
       issues: write
       pull-requests: write
       statuses: read
@@ -947,17 +943,10 @@ jobs:
           fi
           echo "IMAGE_UNDER_TEST=$IMAGE" | tee -a "$GITHUB_OUTPUT"
 
-      - name: Get vault secrets
-        id: vault-secrets
-        uses: grafana/shared-workflows/actions/get-vault-secrets@main
-        with:
-          repo_secrets: |
-            METICULOUS_API_TOKEN=meticulous-ui:api-token
-
       - name: Run Meticulous tests
         uses: alwaysmeticulous/report-diffs-action/upload-container@89c6081b30d17cfcc410b5c19c269cd7a4d67cdf # v1
         with:
-          api-token: ${{ fromJSON(steps.vault-secrets.outputs.secrets).METICULOUS_API_TOKEN }}
+          api-token: ${{ secrets.METICULOUS_API_TOKEN }}
           image-tag: ${{ steps.load-image.outputs.IMAGE_UNDER_TEST }}
           container-port: 3000
           container-env: |

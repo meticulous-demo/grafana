@@ -58,12 +58,12 @@ jobs:
     - run: yarn run prettier:check
     - run: yarn run lint
   lint-frontend-prettier-enterprise:
+    if: false  # disabled: requires Grafana GitHub App / enterprise token
     needs: detect-changes
     permissions:
       contents: read
       id-token: write
     # Run this workflow for non-PR events (like pushes to `main` or `release-*`) OR for internal PRs (PRs not from forks)
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false && needs.detect-changes.outputs.prettier == 'true'
     name: Lint
     runs-on: ubuntu-x64
     steps:
@@ -108,12 +108,12 @@ jobs:
     - run: yarn run typecheck
     - run: yarn run typecheck:smoke
   lint-frontend-typecheck-enterprise:
+    if: false  # disabled: requires Grafana GitHub App / enterprise token
     needs: detect-changes
     permissions:
       contents: read
       id-token: write
     # Run this workflow for non-PR events (like pushes to `main` or `release-*`) OR for internal PRs (PRs not from forks)
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false && needs.detect-changes.outputs.changed == 'true'
     name: Typecheck
     runs-on: ubuntu-x64
     env:
@@ -206,11 +206,11 @@ jobs:
             exit 1
         fi
   lint-frontend-api-clients-enterprise:
+    if: false  # disabled: requires Grafana GitHub App / enterprise token
     permissions:
       contents: read
       id-token: write
     # Run this workflow for pushes to `main` or `release-*` on `grafana/grafana` (not mirrors) OR for internal PRs (PRs not from forks)
-    if: (github.event_name == 'push' && github.repository == 'grafana/grafana') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false)
     name: Verify API clients (enterprise)
     runs-on: ubuntu-x64
     steps:
@@ -334,6 +334,7 @@ jobs:
           exit 1
         fi
   lint-knip:
+    if: false  # disabled: requires Grafana GitHub App / enterprise token
     runs-on: ubuntu-x64-small
     permissions:
       contents: read
@@ -341,7 +342,6 @@ jobs:
     needs:
       - detect-changes
     # Run this workflow for non-PR events (like pushes to `main` or `release-*`) OR for internal PRs (PRs not from forks)
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false && needs.detect-changes.outputs.changed == 'true'
     steps:
     - uses: actions/checkout@v5
       with:
