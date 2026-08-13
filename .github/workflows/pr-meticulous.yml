@@ -172,7 +172,6 @@ jobs:
 
   run-meticulous-tests:
     needs: [build-docker]
-    if: secrets.METICULOUS_API_TOKEN != ''
     name: Run Meticulous tests
     runs-on: ubuntu-latest-16-cores
     continue-on-error: true
@@ -182,6 +181,8 @@ jobs:
       issues: write
       pull-requests: write
       statuses: read
+    env:
+      METICULOUS_API_TOKEN: ${{ secrets.METICULOUS_API_TOKEN }}
 
     steps:
       - uses: actions/checkout@v6
@@ -206,9 +207,10 @@ jobs:
           echo "IMAGE_UNDER_TEST=$IMAGE" | tee -a "$GITHUB_OUTPUT"
 
       - name: Run Meticulous tests
+        if: env.METICULOUS_API_TOKEN != ''
         uses: alwaysmeticulous/report-diffs-action/upload-container@89c6081b30d17cfcc410b5c19c269cd7a4d67cdf # v1
         with:
-          api-token: ${{ secrets.METICULOUS_API_TOKEN }}
+          api-token: ${{ env.METICULOUS_API_TOKEN }}
           image-tag: ${{ steps.load-image.outputs.IMAGE_UNDER_TEST }}
           container-port: 3000
           container-env: |
