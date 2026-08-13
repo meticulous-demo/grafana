@@ -19,10 +19,15 @@ permissions: {}
 
 jobs:
   detect-changes:
-    # Gate the whole workflow behind this check. Skip draft PRs entirely.
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false && github.event.pull_request.draft == false
+    # Skip when the API token isn't available (fork PRs never receive repo secrets),
+    # when the PR is from another repo, or when the PR is still a draft.
+    if: |
+      secrets.METICULOUS_API_TOKEN != '' &&
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.draft == false
     name: Detect whether code changed
-    runs-on: ubuntu-x64-small
+    runs-on: ubuntu-latest-16-cores
     permissions:
       contents: read
     outputs:
@@ -44,7 +49,7 @@ jobs:
     name: setup
     needs: [detect-changes]
     if: needs.detect-changes.outputs.frontend-src == 'true'
-    runs-on: ubuntu-x64-small
+    runs-on: ubuntu-latest-16-cores
     permissions:
       contents: read
     outputs:
@@ -62,7 +67,7 @@ jobs:
 
   build-frontend:
     name: build frontend
-    runs-on: ubuntu-x64-large
+    runs-on: ubuntu-latest-16-cores
     needs: [setup]
     permissions:
       contents: read
@@ -83,7 +88,7 @@ jobs:
 
   build-backend:
     name: build backend
-    runs-on: ubuntu-x64-large
+    runs-on: ubuntu-latest-16-cores
     needs: [setup]
     permissions:
       contents: read
@@ -103,7 +108,7 @@ jobs:
 
   build-targz:
     name: build targz
-    runs-on: ubuntu-x64-large
+    runs-on: ubuntu-latest-16-cores
     needs:
       - setup
       - build-frontend
@@ -128,7 +133,7 @@ jobs:
 
   build-docker:
     name: build docker
-    runs-on: ubuntu-x64-large
+    runs-on: ubuntu-latest-16-cores
     needs:
       - setup
       - build-targz
@@ -170,8 +175,9 @@ jobs:
 
   run-meticulous-tests:
     needs: [build-docker]
+    if: secrets.METICULOUS_API_TOKEN != ''
     name: Run Meticulous tests
-    runs-on: ubuntu-x64-small
+    runs-on: ubuntu-latest-16-cores
     continue-on-error: true
     permissions:
       actions: write
