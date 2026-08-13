@@ -21,17 +21,7 @@ jobs:
     # Skip when the API token isn't available (fork PRs never receive repo secrets).
     # Always run on push to main / workflow_dispatch (needed for base comparison runs).
     # On pull_request, only same-repo non-draft PRs.
-    if: |
-      secrets.METICULOUS_API_TOKEN != '' &&
-      (
-        github.event_name == 'push' ||
-        github.event_name == 'workflow_dispatch' ||
-        (
-          github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.full_name == github.repository &&
-          github.event.pull_request.draft == false
-        )
-      )
+    if: ${{ secrets.METICULOUS_API_TOKEN != '' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false)) }}
     name: Detect whether code changed
     runs-on: ubuntu-latest-16-cores
     permissions:
