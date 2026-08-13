@@ -102,6 +102,7 @@ jobs:
         TEST_SHARD_TOTAL: ${{ matrix.total }}
 
   frontend-unit-tests-enterprise:
+    if: false  # disabled: requires Grafana GitHub App / enterprise token
     permissions:
       contents: read
       id-token: write
@@ -109,7 +110,6 @@ jobs:
       - detect-changes
       - generate-golden-files
     # Run this workflow for non-PR events (like pushes to `main` or `release-*`) OR for internal PRs (PRs not from forks)
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false && needs.detect-changes.outputs.changed == 'true'
     runs-on: ubuntu-x64-large
     name: "Unit tests (${{ matrix.shard }} / ${{ matrix.total }})"
     strategy:

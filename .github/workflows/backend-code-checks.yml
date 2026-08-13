@@ -41,11 +41,11 @@ jobs:
           self: .github/workflows/backend-code-checks.yml
 
   validate-configs:
+    if: false  # disabled: requires Grafana GitHub App / enterprise token
     permissions:
       contents: read
       id-token: write
     needs: detect-changes
-    if: needs.detect-changes.outputs.changed == 'true'
     name: Validate Backend Configs
     runs-on: ubuntu-x64
     steps:

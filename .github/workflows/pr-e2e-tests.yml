@@ -132,10 +132,6 @@ jobs:
       id-token: write
 
     steps:
-      - uses: grafana/shared-workflows/actions/dockerhub-login@main
-        if: github.event.pull_request.head.repo.fork == false
-      - uses: grafana/shared-workflows/actions/login-to-gar@main
-        if: github.event.pull_request.head.repo.fork == false
 
       - name: Checkout code
         uses: actions/checkout@v6
@@ -408,41 +404,6 @@ jobs:
               --report-output log \
               --log-level DEBUG \
               /home/bench/tests/playwright-results.json
-
-  publish-metrics:
-    name: Publish metrics
-    needs: build-frontend # bundle size metrics are read from the built assets manifests
-    # Run on `grafana/grafana` main branch only
-    if: github.event_name == 'push' && github.repository == 'grafana/grafana' && github.ref_name == 'main'
-    permissions:
-      contents: read
-      id-token: write
-    runs-on: ubuntu-x64-small
-    steps:
-      - id: vault-secrets
-        uses: grafana/shared-workflows/actions/get-vault-secrets@main
-        with:
-          repo_secrets: |
-            GRAFANA_MISC_STATS_API_KEY=grafana-misc-stats:api_key
-      - name: Checkout code
-        uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-      - name: Setup Node.js
-        uses: ./.github/actions/setup-node
-        with:
-          cache: 'false' # Don't use setup-node's built in caching, we'll handle it in the yarn-install step
-      - name: Install yarn dependencies
-        uses: ./.github/actions/yarn-install
-      - name: Download frontend artifacts
-        uses: actions/download-artifact@v8
-        with:
-          name: grafana-frontend
-          path: public
-      - name: Extract and publish metrics
-        run: ./scripts/ci-frontend-metrics.sh | node .github/workflows/scripts/publish-frontend-metrics.mts
-        env:
-          GRAFANA_MISC_STATS_API_KEY: ${{ fromJSON(steps.vault-secrets.outputs.secrets).GRAFANA_MISC_STATS_API_KEY }}
 
   # 'All E2E tests complete' is still a required check. To help with this transition, we keep
   # a placeholder job to avoid needing to remove the required check from github yet.
