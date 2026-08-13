@@ -33,7 +33,7 @@ interface AppWrapperProps {
   context: GrafanaContextType;
 }
 
-// Placeholder comment to trigger Meticulous CI without a visible UI change.
+// Placeholder comment to trigger Meticulous CI without a visible UI change (run 2).
 
 // Reads Branding.LoginLogo at render time so custom branding applied by enterprise at startup
 // is reflected regardless of module init order. Defined at module scope so the context value
