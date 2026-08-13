@@ -1388,7 +1388,7 @@ embed.go @grafana/grafana-as-code
 /.github/workflows/pr-test-docker.yml @grafana/grafana-backend-services-squad
 /.github/workflows/update-schema-types.yml @grafana/grafana-frontend-platform
 /.github/workflows/defaults-ini-docs-reminder.yml @grafana/docs-tooling @jtvdez
-/.github/workflows/pr-build-grafana.yml @grafana/grafana-operator-experience-squad
+/.github/workflows/pr-meticulous.yml @grafana/grafana-operator-experience-squad
 /.github/workflows/build-docker-variants.yml @grafana/grafana-operator-experience-squad
 /.github/workflows/create-release-tag.yml @grafana/grafana-operator-experience-squad
 

@@ -1,4 +1,4 @@
-name: PR build Docker image
+name: Meticulous
 
 on:
   pull_request:
@@ -15,7 +15,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 
-# for meticulous tests
 permissions: {}
 
 jobs:
@@ -27,10 +26,7 @@ jobs:
     permissions:
       contents: read
     outputs:
-      # Build when non-test frontend or backend changes: a test-only PR can't
-      # affect the built image, so it shouldn't trigger the Docker build.
-      changed: ${{ steps.detect-changes.outputs.frontend-src == 'true' || steps.detect-changes.outputs.backend-src == 'true' }}
-      # Meticulous only exercises frontend changes, so it gates on this alone.
+      # Build when non-test frontend changes: Meticulous only exercises the UI.
       frontend-src: ${{ steps.detect-changes.outputs.frontend-src }}
     steps:
       - uses: actions/checkout@v5
@@ -42,12 +38,12 @@ jobs:
         id: detect-changes
         uses: ./.github/actions/change-detection
         with:
-          self: .github/workflows/pr-build-grafana.yml
+          self: .github/workflows/pr-meticulous.yml
 
   setup:
     name: setup
     needs: [detect-changes]
-    if: needs.detect-changes.outputs.changed == 'true'
+    if: needs.detect-changes.outputs.frontend-src == 'true'
     runs-on: ubuntu-x64-small
     permissions:
       contents: read
@@ -173,8 +169,7 @@ jobs:
           retention-days: 1
 
   run-meticulous-tests:
-    if: needs.detect-changes.outputs.frontend-src == 'true'
-    needs: [build-docker, detect-changes]
+    needs: [build-docker]
     name: Run Meticulous tests
     runs-on: ubuntu-x64-small
     continue-on-error: true

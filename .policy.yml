@@ -25,7 +25,7 @@ policy:
             - Workflow .github/workflows/i18n-verify.yml succeeded or skipped
             - Workflow .github/workflows/lint-build-docs.yml succeeded or skipped
             - Workflow .github/workflows/policybot.yml succeeded or skipped
-            - Workflow .github/workflows/pr-build-grafana.yml succeeded or skipped
+            - Workflow .github/workflows/pr-meticulous.yml succeeded or skipped
             - Workflow .github/workflows/pr-checks.yml succeeded or skipped
             - Workflow .github/workflows/pr-commands.yml succeeded or skipped
             - Workflow .github/workflows/pr-dependabot-update-go-workspace.yml succeeded or skipped
@@ -368,11 +368,11 @@ approval_rules:
             - success
           workflows:
             - .github/workflows/policybot.yml
-  - name: Workflow .github/workflows/pr-build-grafana.yml succeeded or skipped
+  - name: Workflow .github/workflows/pr-meticulous.yml succeeded or skipped
     if:
       file_not_deleted:
         paths:
-          - ^\.github\/workflows\/pr-build-grafana\.yml$
+          - ^\.github\/workflows\/pr-meticulous\.yml$
     requires:
       conditions:
         has_workflow_result:
@@ -380,7 +380,7 @@ approval_rules:
             - skipped
             - success
           workflows:
-            - .github/workflows/pr-build-grafana.yml
+            - .github/workflows/pr-meticulous.yml
   - name: Workflow .github/workflows/pr-checks.yml succeeded or skipped
     if:
       file_not_deleted:
