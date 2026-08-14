@@ -42,6 +42,12 @@ type IndexViewData struct {
 	AssetSriChecksEnabled bool   `json:"-"`
 	NewPreferencesPage    bool   `json:"-"`
 	OFREPRootUrlEnabled   bool   `json:"-"`
+	// Meticulous AI session recorder options. MeticulousAIEnabled is derived from the
+	// grafana.meticulousAIMode feature flag (default "off", so the recorder is never
+	// injected unless the flag is explicitly enabled).
+	MeticulousAIEnabled                   bool   `json:"-"`
+	MeticulousAIRecordingToken            string `json:"-"`
+	MeticulousAIProductionEnvironmentFlag bool   `json:"-"`
 }
 
 type EntryPointAssets struct {

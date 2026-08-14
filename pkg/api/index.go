@@ -115,6 +115,12 @@ func (hs *HTTPServer) setIndexViewData(c *contextmodel.ReqContext) (*dtos.IndexV
 	grafanaAssetSriChecks, _ := ofClient.BooleanValue(ctx, featuremgmt.FlagGrafanaAssetSriChecks, false, openfeature.TransactionContext(ctx))
 	newPreferencesPage, _ := ofClient.BooleanValue(ctx, featuremgmt.FlagGrafanaNewPreferencesPage, false, openfeature.TransactionContext(ctx))
 	ofrepRootUrlEnabled := ofClient.Boolean(ctx, featuremgmt.FlagGrafanaOfrepRootUrl, false, openfeature.TransactionContext(ctx))
+	// Mirror the frontend-server (FEMT) gating so the Meticulous recorder is injected
+	// consistently regardless of which HTTP server serves the page. The flag default is
+	// "off", so the snippet is never included unless it is explicitly enabled.
+	meticulousAIMode, _ := ofClient.StringValue(ctx, featuremgmt.FlagGrafanaMeticulousAIMode, "off", openfeature.TransactionContext(ctx))
+	meticulousAIEnabled := meticulousAIMode == "on-prod-env" || meticulousAIMode == "on-dev-env"
+	meticulousAIProductionEnvironmentFlag := meticulousAIMode == "on-prod-env"
 
 	// With the client-built nav tree the frontend only needs the items it cannot
 	// know about (enterprise index-data hooks add theirs to the empty root below,
@@ -203,6 +209,10 @@ func (hs *HTTPServer) setIndexViewData(c *contextmodel.ReqContext) (*dtos.IndexV
 		AssetSriChecksEnabled:               grafanaAssetSriChecks,
 		NewPreferencesPage:                  newPreferencesPage,
 		OFREPRootUrlEnabled:                 ofrepRootUrlEnabled,
+		// Meticulous AI session recorder (gated identically to the frontend-server path).
+		MeticulousAIEnabled:                   meticulousAIEnabled,
+		MeticulousAIRecordingToken:            hs.Cfg.MeticulousAIRecordingToken,
+		MeticulousAIProductionEnvironmentFlag: meticulousAIProductionEnvironmentFlag,
 	}
 
 	if hs.Cfg.CSPEnabled {
