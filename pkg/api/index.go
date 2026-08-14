@@ -116,6 +116,12 @@ func (hs *HTTPServer) setIndexViewData(c *contextmodel.ReqContext) (*dtos.IndexV
 	newPreferencesPage, _ := ofClient.BooleanValue(ctx, featuremgmt.FlagGrafanaNewPreferencesPage, false, openfeature.TransactionContext(ctx))
 	ofrepRootUrlEnabled := ofClient.Boolean(ctx, featuremgmt.FlagGrafanaOfrepRootUrl, false, openfeature.TransactionContext(ctx))
 
+	// grafana.meticulousAIMode: "off" (default), "on-dev-env", or "on-prod-env". "on-prod-env"
+	// injects the recorder but marks the session as production so it stays paused for real users.
+	meticulousAIMode, _ := ofClient.StringValue(ctx, featuremgmt.FlagGrafanaMeticulousAIMode, "off", openfeature.TransactionContext(ctx))
+	meticulousAIEnabled := meticulousAIMode == "on-prod-env" || meticulousAIMode == "on-dev-env"
+	meticulousAIProductionEnvironmentFlag := meticulousAIMode == "on-prod-env"
+
 	// With the client-built nav tree the frontend only needs the items it cannot
 	// know about (enterprise index-data hooks add theirs to the empty root below,
 	// and the client grafts them in) — skip building the full tree. The
@@ -203,6 +209,11 @@ func (hs *HTTPServer) setIndexViewData(c *contextmodel.ReqContext) (*dtos.IndexV
 		AssetSriChecksEnabled:               grafanaAssetSriChecks,
 		NewPreferencesPage:                  newPreferencesPage,
 		OFREPRootUrlEnabled:                 ofrepRootUrlEnabled,
+
+		// Meticulous AI session recorder - injected into the page shell when enabled.
+		MeticulousAIEnabled:                   meticulousAIEnabled,
+		MeticulousAIRecordingToken:            hs.Cfg.MeticulousAIRecordingToken,
+		MeticulousAIProductionEnvironmentFlag: meticulousAIProductionEnvironmentFlag,
 	}
 
 	if hs.Cfg.CSPEnabled {

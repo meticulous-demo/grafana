@@ -1,0 +1,32 @@
+# Meticulous coverage-attribution ignore list.
+# These paths are not part of the shipped Grafana web UI, so they should not
+# count toward Meticulous session coverage. This does not affect which URLs are
+# tested — only how coverage is attributed to source files.
+
+# Unit / component / story test files
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+**/*.story.tsx
+**/*.stories.ts
+**/*.stories.tsx
+**/*.stories.mdx
+
+# End-to-end test suites
+e2e/**
+e2e-playwright/**
+
+# Build tooling, CI helpers and generators (not application UI code)
+scripts/**
+
+# Storybook configuration
+packages/*/.storybook/**
+
+# Compiled / generated frontend output and built plugin bundles
+public/build/**
+public/app/plugins/**/dist/**
+
+# Dependencies
+node_modules/**
+**/node_modules/**
