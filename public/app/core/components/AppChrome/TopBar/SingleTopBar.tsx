@@ -103,6 +103,10 @@ export const SingleTopBar = memo(function SingleTopBar({
           <FeatureControlButton />
           <HelpTopBarButton isSmallScreen={isSmallScreen} />
           <NavToolbarSeparator />
+          {/* Intentionally inaccessible: icon-only control with no accessible name (Meticulous a11y demo). */}
+          <button type="button" onClick={() => undefined}>
+            <Icon name="bell" size="lg" />
+          </button>
           {!isSmallScreen && <ExtensionToolbarItem compact={isSmallScreen} />}
           {!showToolbarLevel && actions}
           {!contextSrv.user.isSignedIn && <SignInLink />}
