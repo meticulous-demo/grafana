@@ -13,3 +13,5 @@ mysql
 influxdb
 grafana-postgresql-datasource
 grafana-pyroscope-datasource
+# Pinned so base and PR Meticulous runs screenshot an identical plugin build.
+grafana-assistant-app:2.0.51
