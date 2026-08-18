@@ -134,7 +134,7 @@ const getStyles = (theme: GrafanaTheme2) => ({
   workspaceIcon: css({
     display: 'inline-flex',
     '& svg path:first-of-type': {
-      fill: 'none',
+      fill: `url(#${WORKSPACE_ICON_GRADIENT_ID})`,
       stroke: `url(#${WORKSPACE_ICON_GRADIENT_ID})`,
     },
     '& svg path:not(:first-of-type)': {
