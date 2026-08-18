@@ -33,7 +33,8 @@ export const HelpTopBarButton = memo(function HelpTopBarButton({ isSmallScreen }
       <Dropdown overlay={() => <TopNavBarMenu node={enrichedHelpNode} />} placement="bottom-end">
         <ToolbarButton
           iconOnly
-          icon="question-circle"
+          icon="info-circle"
+          variant="primary"
           aria-label={t('navigation.help.aria-label', 'Help')}
           tooltip={t('navigation.help.tooltip', 'Get help and useful links')}
         />
@@ -47,7 +48,7 @@ export const HelpTopBarButton = memo(function HelpTopBarButton({ isSmallScreen }
   return (
     <ToolbarButton
       iconOnly
-      icon="question-circle"
+      icon="info-circle"
       aria-label={t('navigation.help.aria-label', 'Help')}
       aria-expanded={isOpen}
       variant={isOpen ? 'active' : 'default'}
