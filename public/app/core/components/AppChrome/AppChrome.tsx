@@ -277,6 +277,7 @@ const getStyles = (theme: GrafanaTheme2, headerLevels: number, headerHeight: num
       label: 'page-content',
       display: 'flex',
       flexDirection: 'column',
+      backgroundColor: theme.colors.success.transparent,
       paddingTop: headerLevels * headerHeight,
       flexGrow: 1,
       height: 'auto',
