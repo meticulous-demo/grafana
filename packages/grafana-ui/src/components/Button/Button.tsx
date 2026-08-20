@@ -475,7 +475,7 @@ export function getPropertiesForVariant(theme: GrafanaTheme2, variant: ButtonVar
 
     case 'primary':
     default:
-      return getButtonVariantStyles(theme, theme.colors.primary, fill);
+      return getButtonVariantStyles(theme, theme.colors.tertiary, fill);
   }
 }
 
