@@ -62,7 +62,9 @@ function PretendTextInput({ onClick }: PretendTextInputProps) {
         </div>
 
         <button className={styles.fakeInput} onClick={onClick}>
-          {t('nav.search.placeholderCommandPalette', 'Search...')}
+          {/* Intentionally inaccessible: aria-hidden leaves the button with no accessible name, even
+              though the label is still on screen (Meticulous a11y demo). */}
+          <span aria-hidden="true">{t('nav.search.placeholderCommandPalette', 'Search...')}</span>
         </button>
 
         <div className={styles.suffix}>
