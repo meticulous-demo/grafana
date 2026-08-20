@@ -58,7 +58,7 @@ const getStyles = (theme: GrafanaTheme2) => {
       textOverflow: 'ellipsis',
       overflow: 'hidden',
       whiteSpace: 'nowrap',
-      color: theme.colors.text.secondary,
+      color: theme.colors.primary.text,
     }),
     breadcrumbLink: css({
       color: theme.colors.text.primary,
