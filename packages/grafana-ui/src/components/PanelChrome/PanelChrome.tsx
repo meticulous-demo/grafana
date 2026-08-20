@@ -553,7 +553,7 @@ const getStyles = (theme: GrafanaTheme2) => {
     panel: css({
       label: 'panel-container',
       backgroundColor: background,
-      border: `1px solid ${theme.colors.warning.main}`,
+      border: `1px solid ${borderColor}`,
       position: 'unset',
       borderRadius: theme.shape.radius.lg,
       height: '100%',
