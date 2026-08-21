@@ -19,7 +19,7 @@ import { MegaMenuPinnedItem } from './MegaMenuPinnedItem';
 import { MegaMenuSkeleton } from './MegaMenuSkeleton';
 import { useNavCustomization } from './hooks';
 
-export const MENU_WIDTH = '320px';
+export const MENU_WIDTH = '240px';
 
 export interface Props extends DOMAttributes {
   onClose: () => void;
