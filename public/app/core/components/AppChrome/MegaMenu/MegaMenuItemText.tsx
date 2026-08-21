@@ -193,7 +193,6 @@ const getStyles = (theme: GrafanaTheme2, isActive: Props['isActive'], visualRefr
     wrapper: css({
       display: 'flex',
       alignItems: 'center',
-      backgroundColor: theme.colors.primary.transparent,
       color: isActive ? theme.colors.text.primary : theme.colors.text.secondary,
       width: '100%',
       height: '100%',

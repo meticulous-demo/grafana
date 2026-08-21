@@ -124,7 +124,6 @@ const getStyles = (theme: GrafanaTheme2, menuDockedAndOpen: boolean, visualRefre
     display: 'flex',
     gap: theme.spacing(2),
     alignItems: 'center',
-    backgroundColor: theme.colors.warning.transparent,
     padding: theme.spacing(0, 1),
     paddingLeft: menuDockedAndOpen ? theme.spacing(visualRefreshEnabled ? 0.5 : 3.5) : theme.spacing(0.75),
     borderBottom: visualRefreshEnabled ? undefined : `1px solid ${theme.colors.border.weak}`,
