@@ -95,7 +95,7 @@ const getResultItemStyles = (theme: GrafanaTheme2) => {
     }),
     activeRow: css({
       color: theme.colors.text.maxContrast,
-      background: theme.colors.warning.transparent,
+      background: theme.colors.emphasize(theme.colors.background.primary, 0.03),
       '&:before': {
         display: 'block',
         content: '" "',
