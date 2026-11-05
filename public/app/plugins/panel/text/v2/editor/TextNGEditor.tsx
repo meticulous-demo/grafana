@@ -12,7 +12,6 @@ import { CodeLanguage, defaultCodeLanguage, type RenderMode, TextMode } from '..
 import { TextNGCodeView } from '../TextNGCodeView';
 import { TextNGHtmlView } from '../TextNGHtmlView';
 import { TextNGTruncationNotice } from '../TextNGTruncationNotice';
-import { type TextSandboxProps } from '../TextSandbox';
 import { catchTemplateError, interpolateTemplate, type RowWindow } from '../renderContent';
 import { getInterpolateFormat, transformContent, getCodeMirrorLanguage, isTextNewFeaturesEnabled } from '../utils';
 
@@ -54,7 +53,6 @@ export interface TextNGEditorProps {
   transparent?: boolean;
   /** Whether the panel has a title set. */
   hasTitle?: boolean;
-  consent?: TextSandboxProps['consent'];
 }
 
 const getLanguageLabels = (): Record<CodeLanguage, string> => ({
@@ -92,7 +90,6 @@ export function TextNGEditor({
   onViewChange,
   transparent,
   hasTitle,
-  consent,
 }: TextNGEditorProps) {
   const theme = useTheme2();
   const styles = useStyles2(getStyles);
@@ -272,7 +269,6 @@ export function TextNGEditor({
           html={previewHtml}
           hasData={Boolean(series?.length)}
           minHeight={previewFillHeight}
-          consent={consent}
           className={cx('markdown-html', styles.fullHeight)}
           testId={testId}
         />

@@ -1,20 +1,23 @@
-import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { textUtil } from '@grafana/data';
 import { t } from '@grafana/i18n';
 import { useTheme2 } from '@grafana/ui';
 import { getMermaidConfig } from 'app/core/utils/mermaidConfig';
-import {
-  clearBlocked,
-  reportBlocked,
-  useAllowedOrigins,
-  type BlockedOrigin,
-} from 'app/features/dashboard-scene/scene/sandbox-consent/sandboxConsent';
 
 import { SandboxFrame } from './SandboxFrame';
 import { inlineSandboxFonts } from './sandboxFonts';
 import { getGlobalCss, textSandboxPolicy, type TextSandboxState } from './sandboxPolicy';
 import { isTextNewFeaturesEnabled } from './utils';
+
+interface TextSandboxRemediation {
+  canAllow: boolean;
+  allow: () => void;
+}
+
+export interface TextSandboxReport extends TextSandboxRemediation {
+  state: TextSandboxState;
+}
 
 export interface TextSandboxProps {
   html: string;
@@ -23,16 +26,15 @@ export interface TextSandboxProps {
   testId?: string;
   className?: string;
   minHeight?: number;
-  /** Reports blocked sources to the consent banner. */
-  consent?: { panelId?: number; panelTitle: string; dashboardUid?: string };
+  /** Undefined invalidates the previous report when the document or consumer is removed. */
+  onStateChange?: (report: TextSandboxReport | undefined) => void;
 }
 
-export function TextSandbox({ html, hasData = true, testId, className, minHeight, consent }: TextSandboxProps) {
+export function TextSandbox({ html, hasData = true, testId, className, minHeight, onStateChange }: TextSandboxProps) {
   const theme = useTheme2();
   const host = useRef<HTMLDivElement>(null);
-  const consentKey = useId();
-  const { dashboardUid, panelId, panelTitle } = consent ?? {};
-  const origins = useAllowedOrigins(dashboardUid, panelId);
+  const currentReport = useRef<TextSandboxReport | undefined>(undefined);
+  const [origins, setOrigins] = useState<string[]>([]);
   const [globalCss, setGlobalCss] = useState('');
   const mermaid = useMemo(() => (isTextNewFeaturesEnabled() ? getMermaidConfig(theme) : undefined), [theme]);
   const fontRoot = `${window.__grafana_public_path__ || 'public/'}fonts/`;
@@ -57,15 +59,34 @@ export function TextSandbox({ html, hasData = true, testId, className, minHeight
   }, []);
   const onState = useCallback(
     (state: TextSandboxState | undefined) => {
-      if (state && panelTitle !== undefined) {
-        reportBlocked(consentKey, { dashboardUid, panelId, panelTitle, origins: blockedOrigins(state) });
-      } else {
-        clearBlocked(consentKey);
+      currentReport.current = undefined;
+      if (!state) {
+        onStateChange?.(undefined);
+        return;
       }
+      const canAllow = state.resources.length > 0 && state.resources.every((resource) => resource.origin !== undefined);
+      const report: TextSandboxReport = {
+        state,
+        canAllow,
+        allow: () => {
+          // A dashboard may retain a report after its document or resource snapshot has changed.
+          if (!canAllow || currentReport.current !== report) {
+            return;
+          }
+          currentReport.current = undefined;
+          setOrigins((current) => [
+            ...new Set([
+              ...current,
+              ...state.resources.flatMap((resource) => (resource.origin ? [resource.origin] : [])),
+            ]),
+          ]);
+        },
+      };
+      currentReport.current = report;
+      onStateChange?.(report);
     },
-    [consentKey, dashboardUid, panelId, panelTitle]
+    [onStateChange]
   );
-  useLayoutEffect(() => () => clearBlocked(consentKey), [consentKey]);
 
   return (
     <div className={className} data-testid={testId}>
@@ -84,24 +105,4 @@ export function TextSandbox({ html, hasData = true, testId, className, minHeight
       </div>
     </div>
   );
-}
-
-function blockedOrigins(state: TextSandboxState): BlockedOrigin[] {
-  const byOrigin = new Map<string, { urls: Map<string, number>; truncated: boolean }>();
-  for (const resource of state.resources) {
-    if (!resource.origin) {
-      continue;
-    }
-    const entry = byOrigin.get(resource.origin) ?? { urls: new Map(), truncated: false };
-    for (const { url, count } of resource.urls ?? []) {
-      entry.urls.set(url, Math.max(entry.urls.get(url) ?? 0, count));
-    }
-    entry.truncated ||= Boolean(resource.truncated);
-    byOrigin.set(resource.origin, entry);
-  }
-  return Array.from(byOrigin, ([origin, { urls, truncated }]) => ({
-    origin,
-    urls: Array.from(urls, ([url, count]) => ({ url, count })),
-    ...(truncated && { truncated }),
-  }));
 }

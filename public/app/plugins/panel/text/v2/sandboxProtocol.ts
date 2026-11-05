@@ -1,12 +1,6 @@
 import type { MermaidConfig } from 'mermaid';
 
-import {
-  MAX_BLOCKED_URL_CHARS,
-  MAX_BLOCKED_URL_COUNT,
-  urlChars,
-  type BlockedResource,
-  type BlockedUrl,
-} from './sandboxPolicy';
+import type { BlockedResource } from './sandboxPolicy';
 
 export const TEXT_FRAME_PROTOCOL = 'grafana-text-frame-v1';
 export const CSP_CHECK_URL = 'https://grafana-csp-check.invalid/';
@@ -83,27 +77,10 @@ export function isFrameNotification(
           (resource) =>
             resource &&
             typeof resource.directive === 'string' &&
-            (resource.origin === undefined || typeof resource.origin === 'string') &&
-            (resource.urls === undefined || isBlockedUrls(resource.urls)) &&
-            (resource.truncated === undefined || typeof resource.truncated === 'boolean')
+            (resource.origin === undefined || typeof resource.origin === 'string')
         )
       );
     default:
       return false;
   }
-}
-
-function isBlockedUrls(value: unknown): value is BlockedUrl[] {
-  return (
-    Array.isArray(value) &&
-    value.every(
-      (entry) =>
-        entry &&
-        typeof entry.url === 'string' &&
-        Number.isInteger(entry.count) &&
-        entry.count >= 1 &&
-        entry.count <= MAX_BLOCKED_URL_COUNT
-    ) &&
-    urlChars(value) <= MAX_BLOCKED_URL_CHARS
-  );
 }
