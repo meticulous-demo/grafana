@@ -11,7 +11,6 @@ import (
 	"github.com/grafana/grafana/pkg/infra/db"
 	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/infra/tracing"
-	"github.com/grafana/grafana/pkg/storage/legacysql"
 	"github.com/grafana/grafana/pkg/tests/testsuite"
 	"github.com/grafana/grafana/pkg/util/testutil"
 )
@@ -20,22 +19,22 @@ func TestMain(m *testing.M) {
 	testsuite.Run(m)
 }
 
-func createTestableServerLock(t *testing.T) (*ServerLockService, db.DB) {
+func createTestableServerLock(t *testing.T) *ServerLockService {
 	t.Helper()
 
 	store := db.InitTestDB(t)
 
 	return &ServerLockService{
-		sql:    legacysql.NewDatabaseProvider(store),
-		tracer: tracing.InitializeTracerForTest(),
-		log:    log.New("test-logger"),
-	}, store
+		SQLStore: store,
+		tracer:   tracing.InitializeTracerForTest(),
+		log:      log.New("test-logger"),
+	}
 }
 
 func TestIntegrationServerLock(t *testing.T) {
 	testutil.SkipIntegrationTestInShortMode(t)
 
-	sl, _ := createTestableServerLock(t)
+	sl := createTestableServerLock(t)
 	operationUID := "test-operation"
 
 	first, err := sl.getOrCreate(context.Background(), operationUID)
@@ -76,7 +75,7 @@ func TestIntegrationLockAndRelease(t *testing.T) {
 	operationUID := "test-operation-release"
 
 	t.Run("create lock and then release it", func(t *testing.T) {
-		sl, _ := createTestableServerLock(t)
+		sl := createTestableServerLock(t)
 		duration := time.Hour * 5
 
 		err := sl.acquireForRelease(context.Background(), operationUID, duration)
@@ -94,7 +93,7 @@ func TestIntegrationLockAndRelease(t *testing.T) {
 	})
 
 	t.Run("try to acquire a lock which is already locked, get error", func(t *testing.T) {
-		sl, _ := createTestableServerLock(t)
+		sl := createTestableServerLock(t)
 		duration := time.Hour * 5
 
 		err := sl.acquireForRelease(context.Background(), operationUID, duration)
@@ -109,7 +108,7 @@ func TestIntegrationLockAndRelease(t *testing.T) {
 	})
 
 	t.Run("lock already exists but is timeouted", func(t *testing.T) {
-		sl, store := createTestableServerLock(t)
+		sl := createTestableServerLock(t)
 		pastLastExec := time.Now().Add(-time.Hour).Unix()
 		lock := serverLock{
 			OperationUID:  operationUID,
@@ -117,7 +116,7 @@ func TestIntegrationLockAndRelease(t *testing.T) {
 		}
 
 		// inserting a row with lock in the past
-		err := store.WithTransactionalDbSession(context.Background(), func(sess *db.Session) error {
+		err := sl.SQLStore.WithTransactionalDbSession(context.Background(), func(sess *db.Session) error {
 			affectedRows, err := sess.Insert(&lock)
 			require.NoError(t, err)
 			require.Equal(t, int64(1), affectedRows)
@@ -131,7 +130,7 @@ func TestIntegrationLockAndRelease(t *testing.T) {
 		require.NoError(t, err)
 
 		//validate that the lock LastExecution was updated (at least different from the original)
-		err = store.WithTransactionalDbSession(context.Background(), func(sess *db.Session) error {
+		err = sl.SQLStore.WithTransactionalDbSession(context.Background(), func(sess *db.Session) error {
 			lockRows := []*serverLock{}
 			err := sess.Where("operation_uid = ?", operationUID).Find(&lockRows)
 			require.NoError(t, err)

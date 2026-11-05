@@ -23,7 +23,7 @@ const ui = {
   },
   dsImport: {
     dsPicker: byLabelText(/data source/i, { selector: '#datasource-picker' }),
-    mimirDsOption: byRole('option', { name: /Mimir$/ }),
+    mimirDsOption: byRole('button', { name: /Mimir Prometheus$/ }),
   },
   yamlImport: {
     fileUpload: byLabelText('Upload file'),

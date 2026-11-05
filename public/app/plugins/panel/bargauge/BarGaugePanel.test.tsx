@@ -20,14 +20,7 @@ import {
   type LegendPlacement,
 } from '@grafana/schema';
 
-import {
-  BarGaugePanel,
-  calcBarSize,
-  getItemSpacing,
-  getLegend,
-  getOrientation,
-  type BarGaugePanelProps,
-} from './BarGaugePanel';
+import { BarGaugePanel, type BarGaugePanelProps } from './BarGaugePanel';
 import { defaultOptions } from './panelcfg.gen';
 
 const valueSelector = selectors.components.Panels.Visualization.BarGauge.valueV2;
@@ -132,34 +125,48 @@ describe('BarGaugePanel', () => {
       const panelData = buildPanelData({ data: dataWithTwoSeries() });
       panelData.options.legend.showLegend = false;
 
-      expect(getLegend(panelData.options, panelData.data)).toBeNull();
+      const panel = new BarGaugePanel(panelData);
+      expect(panel.getLegend()).toBeNull();
     });
 
     it('does not render a legend when there is no data', () => {
       const panelData = buildPanelData();
       panelData.options.legend.showLegend = true;
 
-      expect(getLegend(panelData.options, panelData.data)).toBeNull();
+      const panel = new BarGaugePanel(panelData);
+      expect(panel.getLegend()).toBeNull();
     });
   });
 
   describe('getItemSpacing', () => {
     it('uses tighter spacing for the LCD display mode than for non-LCD display modes', () => {
-      expect(getItemSpacing(BarGaugeDisplayMode.Gradient)).toBeGreaterThan(getItemSpacing(BarGaugeDisplayMode.Lcd));
+      const lcd = buildPanelData();
+      lcd.options.displayMode = BarGaugeDisplayMode.Lcd;
+
+      const nonLcd = buildPanelData();
+      nonLcd.options.displayMode = BarGaugeDisplayMode.Gradient;
+
+      expect(new BarGaugePanel(nonLcd).getItemSpacing()).toBeGreaterThan(new BarGaugePanel(lcd).getItemSpacing());
     });
   });
 
   describe('getOrientation', () => {
     it('returns the explicit orientation when not Auto', () => {
-      expect(getOrientation(VizOrientation.Vertical, 552, 250)).toBe(VizOrientation.Vertical);
+      const panelData = buildPanelData();
+      panelData.options.orientation = VizOrientation.Vertical;
+      expect(new BarGaugePanel(panelData).getOrientation()).toBe(VizOrientation.Vertical);
     });
 
     it('resolves Auto to Vertical when wider than tall', () => {
-      expect(getOrientation(VizOrientation.Auto, 600, 200)).toBe(VizOrientation.Vertical);
+      const panelData = buildPanelData({ width: 600, height: 200 });
+      panelData.options.orientation = VizOrientation.Auto;
+      expect(new BarGaugePanel(panelData).getOrientation()).toBe(VizOrientation.Vertical);
     });
 
     it('resolves Auto to Horizontal when taller than wide', () => {
-      expect(getOrientation(VizOrientation.Auto, 200, 600)).toBe(VizOrientation.Horizontal);
+      const panelData = buildPanelData({ width: 200, height: 600 });
+      panelData.options.orientation = VizOrientation.Auto;
+      expect(new BarGaugePanel(panelData).getOrientation()).toBe(VizOrientation.Horizontal);
     });
   });
 
@@ -171,7 +178,7 @@ describe('BarGaugePanel', () => {
       panelData.options.minVizHeight = 222;
       panelData.options.maxVizHeight = 333;
 
-      expect(calcBarSize(panelData.options, VizOrientation.Horizontal)).toEqual({
+      expect(new BarGaugePanel(panelData).calcBarSize()).toEqual({
         minVizWidth: defaultOptions.minVizWidth,
         minVizHeight: defaultOptions.minVizHeight,
         maxVizHeight: defaultOptions.maxVizHeight,
@@ -181,18 +188,20 @@ describe('BarGaugePanel', () => {
     it('applies manual min width for vertical orientation', () => {
       const panelData = buildPanelData();
       panelData.options.sizing = BarGaugeSizing.Manual;
+      panelData.options.orientation = VizOrientation.Vertical;
       panelData.options.minVizWidth = 42;
 
-      expect(calcBarSize(panelData.options, VizOrientation.Vertical).minVizWidth).toBe(42);
+      expect(new BarGaugePanel(panelData).calcBarSize().minVizWidth).toBe(42);
     });
 
     it('applies manual min/max height for horizontal orientation', () => {
       const panelData = buildPanelData();
       panelData.options.sizing = BarGaugeSizing.Manual;
+      panelData.options.orientation = VizOrientation.Horizontal;
       panelData.options.minVizHeight = 20;
       panelData.options.maxVizHeight = 250;
 
-      const result = calcBarSize(panelData.options, VizOrientation.Horizontal);
+      const result = new BarGaugePanel(panelData).calcBarSize();
       expect(result.minVizHeight).toBe(20);
       expect(result.maxVizHeight).toBe(250);
     });

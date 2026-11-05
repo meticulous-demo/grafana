@@ -167,7 +167,7 @@ export const CorrelationEditorModeBar = ({ panes }: { panes: Array<[string, Expl
         action === CORRELATION_EDITOR_POST_CONFIRM_ACTION.CHANGE_DATASOURCE &&
         changeDatasourceUid !== undefined
       ) {
-        dispatch(changeDatasource({ exploreId, datasource: changeDatasourceUid }));
+        changeDatasource({ exploreId, datasource: changeDatasourceUid });
         resetEditor();
       }
     } else {

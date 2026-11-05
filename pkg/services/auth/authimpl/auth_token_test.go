@@ -30,7 +30,6 @@ import (
 	"github.com/grafana/grafana/pkg/services/secrets/fakes"
 	"github.com/grafana/grafana/pkg/services/user"
 	"github.com/grafana/grafana/pkg/setting"
-	"github.com/grafana/grafana/pkg/storage/legacysql"
 	"github.com/grafana/grafana/pkg/tests/testsuite"
 	"github.com/grafana/grafana/pkg/util/testutil"
 )
@@ -889,14 +888,13 @@ func createTestContext(t *testing.T) *testContext {
 		TokenRotationIntervalMinutes: 10,
 	}
 
-	sqlProvider := legacysql.NewDatabaseProvider(sqlstore)
-	extSessionStore := provideExternalSessionStore(sqlProvider, &fakes.FakeSecretsService{}, tracer)
+	extSessionStore := provideExternalSessionStore(sqlstore, &fakes.FakeSecretsService{}, tracer)
 
 	cfgProvider, err := configprovider.ProvideService(cfg)
 	require.NoError(t, err)
 
 	tokenService := &UserAuthTokenService{
-		sql:                  sqlProvider,
+		sqlStore:             sqlstore,
 		cfgProvider:          cfgProvider,
 		log:                  log.New("test-logger"),
 		singleflight:         new(singleflight.Group),

@@ -3638,24 +3638,9 @@
         "declare-incident": "Declare incident",
         "declare-incident-no-permission": "You do not have permission to access Incident",
         "instance-details": "Instance details",
-        "investigation-checking": "Checking for investigation…",
-        "investigation-lookup-failed": "Could not check for an existing investigation. Try again.",
-        "investigation-lookup-retry": "Retry check",
-        "investigation-poll-failed": "Could not refresh investigation status. Try again.",
-        "investigation-poll-retry": "Retry status",
-        "investigation-report-failed": "The investigation report failed or was cancelled. You can open it or try again.",
-        "investigation-running": "Generating investigation report…",
-        "investigation-start-failed": "Could not start the investigation. Try again.",
-        "investigation-starting": "Starting…",
-        "investigation-waiting-identity": "Waiting for alert details before starting an investigation.",
-        "investigation-watch-live": "Watch live in assistant workspace",
-        "open-failed-investigation": "Open failed report",
-        "open-investigation": "Open full investigation report",
         "section-silence": "Silence",
         "silence-button": "Silence",
-        "silence-no-permission": "You do not have permission to create silences",
-        "start-investigation": "Start investigation",
-        "start-investigation-tooltip": "Assistant will draft it in your workspace"
+        "silence-no-permission": "You do not have permission to create silences"
       },
       "labels-column-title": "Labels",
       "no-firing-or-pending-instances": "You have no alert instances in a firing or pending state for the selected time range.",
@@ -6875,12 +6860,9 @@
     },
     "dashboard-annotations-list": {
       "add-annotation-query": "Add annotation query",
-      "title-above-dashboard-count_one": "Above dashboard ({{count}})",
-      "title-above-dashboard-count_other": "Above dashboard ({{count}})",
-      "title-controls-menu-count_one": "Controls menu ({{count}})",
-      "title-controls-menu-count_other": "Controls menu ({{count}})",
-      "title-hidden-count_one": "Hidden ({{count}})",
-      "title-hidden-count_other": "Hidden ({{count}})"
+      "title-above-dashboard": "Above dashboard",
+      "title-controls-menu": "Controls menu",
+      "title-hidden": "Hidden"
     },
     "dashboard-edit-pane-renderer": {
       "title-feedback-dashboard-editing-experience": "Give feedback on the new dashboard editing experience"
@@ -7019,11 +7001,10 @@
     "description-label": {
       "description": "Description"
     },
-    "draggable-item": {
-      "drag-to-reorder": "Drag to reorder"
-    },
     "draggable-items-list": {
-      "select": "Select"
+      "delete": "Delete",
+      "duplicate": "Duplicate",
+      "edit": "Edit"
     },
     "edit-link-view": {
       "edit-link-page-nav": {
@@ -7059,12 +7040,9 @@
     "filters-list": {
       "add-filter": "Add filter",
       "reorder-description": "Reorder filters list",
-      "title-above-dashboard_one": "Above dashboard ({{count}})",
-      "title-above-dashboard_other": "Above dashboard ({{count}})",
-      "title-controls-menu_one": "Controls menu ({{count}})",
-      "title-controls-menu_other": "Controls menu ({{count}})",
-      "title-hidden_one": "Hidden ({{count}})",
-      "title-hidden_other": "Hidden ({{count}})"
+      "title-above-dashboard": "Above dashboard",
+      "title-controls-menu": "Controls menu",
+      "title-hidden": "Hidden"
     },
     "general-settings-edit-view": {
       "default_grid_options": {
@@ -7260,10 +7238,8 @@
     },
     "links-list": {
       "drag-end-description": "Reorder links list",
-      "title-above-dashboard_one": "Above dashboard ({{count}})",
-      "title-above-dashboard_other": "Above dashboard ({{count}})",
-      "title-controls-menu_one": "Controls menu ({{count}})",
-      "title-controls-menu_other": "Controls menu ({{count}})"
+      "title-above-dashboard": "Above dashboard",
+      "title-controls-menu": "Controls menu"
     },
     "move-provisioned-dashboard-form": {
       "already-in-folder": "Dashboard is already in the selected folder.",
@@ -7805,12 +7781,8 @@
           "reorder-variables-list": "Reorder variables list"
         }
       },
-      "title-controls-menu_one": "Controls menu ({{count}})",
-      "title-controls-menu_other": "Controls menu ({{count}})",
-      "title-hidden_one": "Hidden ({{count}})",
-      "title-hidden_other": "Hidden ({{count}})",
-      "title-top-placement_one": "{{placement}} ({{count}})",
-      "title-top-placement_other": "{{placement}} ({{count}})",
+      "title-controls-menu": "Controls menu",
+      "title-hidden": "Hidden",
       "top-placement": {
         "default": "Above dashboard"
       }
@@ -7978,9 +7950,7 @@
       "description-mixed": "Use multiple data sources"
     },
     "list": {
-      "no-data-source-message": "No data sources found",
-      "results-found_one": "{{count}} data source found",
-      "results-found_other": "{{count}} data sources found"
+      "no-data-source-message": "No data sources found"
     },
     "modal": {
       "configure-new-data-source": "Open a new tab and configure a data source",
@@ -15841,24 +15811,7 @@
     "name-show-mini-map": "Show mini map"
   },
   "textng": {
-    "category-text": "Text",
-    "code-view": {
-      "aria-label-code-content": "Code content"
-    },
-    "editor": {
-      "aria-label-content": "Text content",
-      "view-preview": "Preview",
-      "view-split": "Split",
-      "view-write": "Write"
-    },
-    "mode-options": {
-      "label-code": "Code",
-      "label-html": "HTML",
-      "label-markdown": "Markdown"
-    },
-    "name-language": "Language",
-    "name-mode": "Mode",
-    "name-show-line-numbers": "Show line numbers"
+    "placeholder": "New text panel"
   },
   "theme-playground": {
     "label-base-theme": "Base theme",

@@ -162,10 +162,12 @@ export async function buildNewDashboardSaveModelV2(
   }
 
   // Initialize default preferences to be same as the default layout
-  data.spec.preferences = {
-    ...data.spec.preferences,
-    layout: defaultGridLayoutKind(),
-  };
+  if (config.featureToggles.dashboardDefaultLayoutSelector) {
+    data.spec.preferences = {
+      ...data.spec.preferences,
+      layout: defaultGridLayoutKind(),
+    };
+  }
 
   return data;
 }

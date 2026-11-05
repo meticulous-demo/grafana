@@ -43,7 +43,6 @@ import { InstanceTimelineSection } from './InstanceTimelineSection';
 import { QueryVisualization } from './QueryVisualization';
 import { isDrawerRangeShorterThanQuery } from './drawerTimeRangeUtils';
 import { useInstanceAlertState } from './instanceStateUtils';
-import { getAlertInstanceEndsAtIso, getAlertInstanceStartsAtIso } from './startInvestigationFromAlert';
 import { convertStateHistoryToAnnotations } from './stateHistoryUtils';
 import { formatTimelineDate, noop } from './timelineUtils';
 
@@ -220,11 +219,9 @@ export function InstanceDetailsDrawer({ ruleUID, instanceLabels, commonLabels, o
       instanceLabels,
       commonLabels,
       alertState: instanceState,
-      alertStartsAt: getAlertInstanceStartsAtIso(historyRecords),
-      alertEndsAt: getAlertInstanceEndsAtIso(historyRecords),
       onOpenSilence: handleOpenSilence,
     }),
-    [instanceLabels, commonLabels, instanceState, historyRecords, handleOpenSilence]
+    [instanceLabels, commonLabels, instanceState, handleOpenSilence]
   );
 
   const getDrawerTitle = () => <InstanceDetailsDrawerTitle {...sharedTitleProps} rule={rule?.grafana_alert} />;

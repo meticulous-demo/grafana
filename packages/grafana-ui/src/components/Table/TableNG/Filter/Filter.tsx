@@ -66,7 +66,7 @@ export const Filter = memo(
         ref={ref}
         type="button"
         aria-haspopup="dialog"
-        aria-expanded={isPopoverVisible}
+        aria-pressed={isPopoverVisible}
         aria-label={t('grafana-ui.table.filter.button', `Filter {{name}}`, {
           name: field ? getDisplayName(field) : '',
         })}

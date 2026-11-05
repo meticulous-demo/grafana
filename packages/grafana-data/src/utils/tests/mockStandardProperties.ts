@@ -1,8 +1,4 @@
-import {
-  displayNameOverrideProcessor,
-  identityOverrideProcessor,
-  thresholdsOverrideProcessor,
-} from '../../field/overrides/processors';
+import { displayNameOverrideProcessor, identityOverrideProcessor } from '../../field/overrides/processors';
 import { ThresholdsMode } from '../../types/thresholds';
 
 export const mockStandardProperties = () => {
@@ -116,8 +112,7 @@ export const mockStandardProperties = () => {
 
     editor: () => null,
     override: () => null,
-    // the real processor, so applyFieldOverrides-level tests exercise valueExpr resolution
-    process: thresholdsOverrideProcessor,
+    process: identityOverrideProcessor,
     settings: {},
     defaultValue: {
       mode: ThresholdsMode.Absolute,

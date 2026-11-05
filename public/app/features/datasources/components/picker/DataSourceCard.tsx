@@ -5,7 +5,7 @@ import { Card, Icon, TagList, useTheme2 } from '@grafana/ui';
 
 interface DataSourceCardProps {
   ds: DataSourceInstanceSettings;
-  onClick?: () => void;
+  onClick: () => void;
   selected: boolean;
   description?: string;
   isFavorite?: boolean;
@@ -79,8 +79,7 @@ function getStyles(theme: GrafanaTheme2, builtIn = false) {
       width: '100%',
       overflow: 'hidden',
       // This is needed to enable ellipsis when text overflows
-      // (the heading renders a button when the card is clickable, a span otherwise)
-      '> button, > span': {
+      '> button': {
         width: '100%',
       },
     }),

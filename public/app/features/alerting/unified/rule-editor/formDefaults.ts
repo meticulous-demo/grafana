@@ -1,7 +1,6 @@
 import { clamp } from 'lodash';
 import z from 'zod';
 
-import { store } from '@grafana/data';
 import { config, getDataSourceSrv } from '@grafana/runtime';
 import { alertingAlertRuleFormSchema } from 'app/features/plugins/components/restrictedGrafanaApis/alerting/alertRuleFormSchema';
 import { type RuleWithLocation } from 'app/types/unified-alerting';
@@ -114,7 +113,7 @@ export const getDefaultFormValues = (ruleType?: RuleFormType): RuleFormValues =>
 export const getDefautManualRouting = () => {
   // check in local storage
   // if it's not set, we'll default to true
-  const manualRouting = store.get(MANUAL_ROUTING_KEY);
+  const manualRouting = localStorage.getItem(MANUAL_ROUTING_KEY);
   return manualRouting !== 'false';
 };
 
@@ -124,8 +123,8 @@ function getDefaultEditorSettings(ruleType?: RuleFormType) {
   }
 
   //then, check in local storage if the user has saved last rule with sections simplified
-  const queryEditorSettings = store.get(SIMPLIFIED_QUERY_EDITOR_KEY);
-  const notificationStepSettings = store.get(MANUAL_ROUTING_KEY);
+  const queryEditorSettings = localStorage.getItem(SIMPLIFIED_QUERY_EDITOR_KEY);
+  const notificationStepSettings = localStorage.getItem(MANUAL_ROUTING_KEY);
   return {
     simplifiedQueryEditor: queryEditorSettings !== 'false',
     simplifiedNotificationEditor: notificationStepSettings !== 'false',

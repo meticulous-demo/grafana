@@ -547,26 +547,19 @@ func parseNamespace(path string) string {
 	return parts[0]
 }
 
-const (
-	orgIDQuery       = "orgId"       // sent by Grafana frontend (preferred)
-	orgIDTargetQuery = "targetOrgId" // legacy API caller param
-)
+// name of query string used to target specific org for request
+const orgIDTargetQuery = "targetOrgId"
 
 func orgIDFromQuery(req *http.Request) int64 {
 	params := req.URL.Query()
-	// Prefer orgId (frontend) over targetOrgId (legacy). Fall through on
-	// parse failure so a malformed value doesn't mask a valid one.
-	for _, key := range []string{orgIDQuery, orgIDTargetQuery} {
-		if !params.Has(key) {
-			continue
-		}
-		id, err := strconv.ParseInt(params.Get(key), 10, 64)
-		if err != nil {
-			continue
-		}
-		return id
+	if !params.Has(orgIDTargetQuery) {
+		return 0
 	}
-	return 0
+	id, err := strconv.ParseInt(params.Get(orgIDTargetQuery), 10, 64)
+	if err != nil {
+		return 0
+	}
+	return id
 }
 
 // name of header containing org id for request

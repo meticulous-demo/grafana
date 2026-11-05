@@ -10,10 +10,9 @@ import {
   type GrafanaTheme2,
 } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
-import { Trans, t } from '@grafana/i18n';
+import { Trans } from '@grafana/i18n';
 import { type FavoriteDatasources, getTemplateSrv } from '@grafana/runtime';
 import { useStyles2 } from '@grafana/ui';
-import { SearchStatus } from '@grafana/ui/internal';
 
 import { useDatasources, useRecentlyUsedDataSources } from '../../hooks';
 
@@ -53,10 +52,6 @@ export interface DataSourceListProps {
   favoriteDataSources: FavoriteDatasources;
   /** Ref to the scroll container element, used by the virtualizer */
   scrollRef: React.RefObject<HTMLDivElement | null>;
-  /** DOM id of the listbox, used to build option ids for aria-activedescendant */
-  listboxId?: string;
-  /** Reports the DOM id of the keyboard-highlighted option, for aria-activedescendant on the input */
-  onActiveItemChange?: (id: string | undefined) => void;
 }
 
 export function DataSourceList(props: DataSourceListProps) {
@@ -69,26 +64,14 @@ export function DataSourceList(props: DataSourceListProps) {
     enableKeyboardNavigation,
     onClickEmptyStateCTA,
     favoriteDataSources,
-    listboxId,
-    onActiveItemChange,
     scrollRef,
   } = props;
 
   const [recentlyUsedDataSources, pushRecentlyUsedDataSource] = useRecentlyUsedDataSources();
   const sortedDataSources = useSortedDataSources(props, current, recentlyUsedDataSources, favoriteDataSources);
 
-  const searchStatusMessage =
-    sortedDataSources.length === 0
-      ? t('data-source-picker.list.no-data-source-message', 'No data sources found')
-      : t('data-source-picker.list.results-found', '', {
-          count: sortedDataSources.length,
-          defaultValue_one: '{{count}} data source found',
-          defaultValue_other: '{{count}} data sources found',
-        });
-
   return (
     <div className={cx(className, styles.container)} data-testid={selectors.components.DataSourcePicker.dataSourceList}>
-      <SearchStatus message={searchStatusMessage} />
       {sortedDataSources.length === 0 && <EmptyState className={styles.emptyState} onClickCTA={onClickEmptyStateCTA} />}
       {sortedDataSources.length > 0 && (
         <VirtualizedList
@@ -100,8 +83,6 @@ export function DataSourceList(props: DataSourceListProps) {
           onChange={onChange}
           pushRecentlyUsedDataSource={pushRecentlyUsedDataSource}
           scrollRef={scrollRef}
-          listboxId={listboxId}
-          onActiveItemChange={onActiveItemChange}
         />
       )}
     </div>

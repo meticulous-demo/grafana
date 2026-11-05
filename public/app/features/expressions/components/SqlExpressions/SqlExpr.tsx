@@ -1,6 +1,6 @@
 import { css, cx } from '@emotion/css';
 import { useBooleanFlagValue } from '@openfeature/react-sdk';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo } from 'react';
 import { useLocalStorage, useMeasure } from 'react-use';
 import AutoSizer, { type Size } from 'react-virtualized-auto-sizer';
 
@@ -50,7 +50,6 @@ export interface SqlExprProps {
 
 export const SqlExpr = ({ onChange, refIds, query, alerting = false, queries, metadata, onRunQuery }: SqlExprProps) => {
   const vars = useMemo(() => refIds.map((v) => v.value!), [refIds]);
-  const containerRef = useRef<HTMLDivElement>(null);
   const interpolationScopedVars = metadata?.data?.request?.scopedVars;
   const interpolationFilters = metadata?.data?.request?.filters;
   const interpolationRange = metadata?.range;
@@ -223,12 +222,8 @@ LIMIT
     const handleKeyDown = (event: KeyboardEvent) => {
       const isMac = navigator.userAgent.includes('Mac');
       const isCmdOrCtrl = isMac ? event.metaKey : event.ctrlKey;
-      const target = event.target;
 
-      // Only handle the shortcut when it originates inside this editor. The listener is on document at
-      // capture phase (to win the shortcut over the inner code editor), so without this guard every mounted
-      // instance would fire and it would steal cmd/ctrl+enter from other editors on the page.
-      if (isCmdOrCtrl && event.key === 'Enter' && target instanceof Node && containerRef.current?.contains(target)) {
+      if (isCmdOrCtrl && event.key === 'Enter') {
         event.preventDefault();
         event.stopPropagation();
         executeQuery();
@@ -320,7 +315,7 @@ LIMIT
   );
 
   return (
-    <div className={styles.mainContainer} data-testid="sql-expression-editor" ref={containerRef}>
+    <div className={styles.mainContainer} data-testid="sql-expression-editor">
       <Stack direction="column" gap={1}>
         {renderButtons()}
         {renderMainContent()}

@@ -11,7 +11,6 @@ import {
   ThresholdsMode,
 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { useFlagGrafanaThresholdsInterpolation } from '@grafana/runtime/internal';
 import { Button, ColorPicker, colors, IconButton, Input, Label, RadioButtonGroup, useStyles2 } from '@grafana/ui';
 
 export interface Props {
@@ -29,7 +28,6 @@ export const ThresholdsEditor = memo(function ThresholdsEditor({ thresholds, onC
   const isMounted = useRef(false);
   const userAddedThreshold = useRef(false);
   const styles = useStyles2(getStyles);
-  const interpolationEnabled = useFlagGrafanaThresholdsInterpolation();
 
   const stepsRef = useRef(steps);
   stepsRef.current = steps;
@@ -40,12 +38,7 @@ export const ThresholdsEditor = memo(function ThresholdsEditor({ thresholds, onC
     const currentSteps = stepsRef.current;
     const changed =
       currentSteps.length !== nextSteps.length ||
-      currentSteps.some(
-        (s, i) =>
-          s.color !== nextSteps[i].color ||
-          s.value !== (nextSteps[i].value ?? -Infinity) ||
-          s.valueExpr !== nextSteps[i].valueExpr
-      );
+      currentSteps.some((s, i) => s.color !== nextSteps[i].color || s.value !== (nextSteps[i].value ?? -Infinity));
     if (changed) {
       const newSteps = toThresholdsWithKey(thresholds.steps);
       newSteps[0].value = -Infinity;
@@ -108,22 +101,15 @@ export const ThresholdsEditor = memo(function ThresholdsEditor({ thresholds, onC
   }
 
   function onChangeThresholdValue(event: ChangeEvent<HTMLInputElement>, threshold: ThresholdWithKey) {
-    const rawValue = event.target.value;
+    const cleanValue = event.target.value.replace(/,/g, '.');
+    const parsedValue = parseFloat(cleanValue);
+    const value = isNaN(parsedValue) ? '' : parsedValue;
 
     const newSteps = steps.map((t) => {
-      if (t.key !== threshold.key) {
-        return t;
+      if (t.key === threshold.key) {
+        t = { ...t, value: value as number };
       }
-
-      if (interpolationEnabled && rawValue.includes('$')) {
-        // a variable expression: store it alongside the numeric value, which stays as the fallback
-        return { ...t, valueExpr: rawValue };
-      }
-
-      const cleanValue = rawValue.replace(/,/g, '.');
-      const parsedValue = parseFloat(cleanValue);
-      const { valueExpr, ...numericStep } = t;
-      return { ...numericStep, value: (isNaN(parsedValue) ? '' : parsedValue) as number };
+      return t;
     });
 
     if (newSteps.length) {
@@ -148,8 +134,7 @@ export const ThresholdsEditor = memo(function ThresholdsEditor({ thresholds, onC
   }
 
   function onBlur() {
-    // an input left empty holds '' as its value — settle it to 0
-    const newSteps = steps.map((t) => (isNumber(t.value) ? t : { ...t, value: 0 }));
+    const newSteps = [...steps];
     sortThresholds(newSteps);
     setSteps(newSteps);
     fireOnChange(newSteps);
@@ -191,12 +176,11 @@ export const ThresholdsEditor = memo(function ThresholdsEditor({ thresholds, onC
 
     return (
       <Input
-        // with interpolation enabled, a text input so variable expressions (e.g. $myVar) can be typed
-        type={interpolationEnabled ? 'text' : 'number'}
-        step={interpolationEnabled ? undefined : '0.0001'}
+        type="number"
+        step="0.0001"
         key={isPercent.toString()}
         onChange={(event: ChangeEvent<HTMLInputElement>) => onChangeThresholdValue(event, threshold)}
-        value={interpolationEnabled ? (threshold.valueExpr ?? threshold.value) : threshold.value}
+        value={threshold.value}
         aria-label={ariaLabel}
         ref={idx === 0 ? latestThresholdInputRef : null}
         onBlur={onBlur}
@@ -289,17 +273,12 @@ function toThresholdsWithKey(steps?: Threshold[]): ThresholdWithKey[] {
 
   return steps
     .filter((t, i) => isNumber(t.value) || i === 0)
-    .map((t, i) => {
-      const step: ThresholdWithKey = {
+    .map((t) => {
+      return {
         color: t.color,
         value: t.value === null ? -Infinity : t.value,
         key: counter++,
       };
-      // the base step never carries an expression
-      if (t.valueExpr && i > 0) {
-        step.valueExpr = t.valueExpr;
-      }
-      return step;
     });
 }
 
@@ -309,8 +288,7 @@ function thresholdsWithoutKey(thresholds: ThresholdsConfig, steps: ThresholdWith
     mode,
     steps: steps.map((t) => {
       const { key, ...rest } = t;
-      // never persist the '' an input cleared mid-edit holds — the backend requires a number
-      return isNumber(rest.value) ? rest : { ...rest, value: 0 };
+      return rest; // everything except key
     }),
   };
 }

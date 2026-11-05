@@ -5,7 +5,6 @@ import * as React from 'react';
 import tinycolor from 'tinycolor2';
 
 import {
-  colorManipulator,
   type DisplayProcessor,
   type DisplayValue,
   type DisplayValueAlignmentFactors,
@@ -540,7 +539,7 @@ export function getBasicAndGradientStyles(props: Props): BasicAndGradientStyles 
   };
 
   const emptyBar: CSSProperties = {
-    background: colorManipulator.emphasize(theme.components.panel.background, 0.07),
+    background: theme.colors.background.secondary,
     flexGrow: 1,
     display: 'flex',
     borderRadius: theme.shape.radius.sm,

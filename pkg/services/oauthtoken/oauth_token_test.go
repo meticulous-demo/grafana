@@ -24,7 +24,6 @@ import (
 	"github.com/grafana/grafana/pkg/services/login"
 	"github.com/grafana/grafana/pkg/services/login/authinfotest"
 	"github.com/grafana/grafana/pkg/setting"
-	"github.com/grafana/grafana/pkg/storage/legacysql"
 	"github.com/grafana/grafana/pkg/tests/testsuite"
 	"github.com/grafana/grafana/pkg/util/testutil"
 )
@@ -332,7 +331,7 @@ func TestIntegration_TryTokenRefresh(t *testing.T) {
 			env := environment{
 				sessionService:  authtest.NewMockUserAuthTokenService(t),
 				authInfoService: authinfotest.NewMockAuthInfoService(t),
-				serverLock:      serverlock.ProvideService(legacysql.NewDatabaseProvider(store), tracing.InitializeTracerForTest()),
+				serverLock:      serverlock.ProvideService(store, tracing.InitializeTracerForTest()),
 				socialConnector: socialConnector,
 				socialService: &socialtest.FakeSocialService{
 					ExpectedConnector: socialConnector,
@@ -632,7 +631,7 @@ func TestIntegration_TryTokenRefresh_WithExternalSessions(t *testing.T) {
 			env := environment{
 				sessionService:  authtest.NewMockUserAuthTokenService(t),
 				authInfoService: authinfotest.NewMockAuthInfoService(t),
-				serverLock:      serverlock.ProvideService(legacysql.NewDatabaseProvider(store), tracing.InitializeTracerForTest()),
+				serverLock:      serverlock.ProvideService(store, tracing.InitializeTracerForTest()),
 				socialConnector: socialConnector,
 				socialService: &socialtest.FakeSocialService{
 					ExpectedConnector: socialConnector,
@@ -1081,7 +1080,7 @@ func TestIntegration_GetCurrentOAuthToken(t *testing.T) {
 			env := environment{
 				sessionService:  authtest.NewMockUserAuthTokenService(t),
 				authInfoService: authinfotest.NewMockAuthInfoService(t),
-				serverLock:      serverlock.ProvideService(legacysql.NewDatabaseProvider(store), tracing.InitializeTracerForTest()),
+				serverLock:      serverlock.ProvideService(store, tracing.InitializeTracerForTest()),
 				socialConnector: socialConnector,
 				socialService: &socialtest.FakeSocialService{
 					ExpectedConnector: socialConnector,
@@ -1381,7 +1380,7 @@ func TestIntegration_GetCurrentOAuthToken_WithExternalSessions(t *testing.T) {
 			env := environment{
 				sessionService:  authtest.NewMockUserAuthTokenService(t),
 				authInfoService: authinfotest.NewMockAuthInfoService(t),
-				serverLock:      serverlock.ProvideService(legacysql.NewDatabaseProvider(store), tracing.InitializeTracerForTest()),
+				serverLock:      serverlock.ProvideService(store, tracing.InitializeTracerForTest()),
 				socialConnector: socialConnector,
 				socialService: &socialtest.FakeSocialService{
 					ExpectedConnector: socialConnector,
