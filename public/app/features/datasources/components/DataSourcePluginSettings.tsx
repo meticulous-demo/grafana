@@ -1,7 +1,6 @@
 import { createElement, memo } from 'react';
 
 import { type DataSourceConfigValidationAPI, type DataSourcePluginMeta, type DataSourceSettings } from '@grafana/data';
-import { selectors } from '@grafana/e2e-selectors';
 import { writableProxy } from 'app/features/plugins/extensions/utils';
 
 import { type GenericDataSourcePlugin } from '../types';
@@ -19,13 +18,8 @@ export const DataSourcePluginSettings = memo(({ plugin, dataSource, onModelChang
     return null;
   }
 
-  const pluginId = plugin.meta?.id;
-
   return (
-    <div
-      data-testid={pluginId ? selectors.components.Plugins.dataSourceConfigEditor(pluginId) : undefined}
-      data-plugin-id={pluginId}
-    >
+    <div>
       {plugin.components.ConfigEditor &&
         createElement(plugin.components.ConfigEditor, {
           options: writableProxy(dataSource, {

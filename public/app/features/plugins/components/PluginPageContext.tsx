@@ -4,14 +4,13 @@ import { type NavModel } from '@grafana/data';
 
 export interface PluginPageContextType {
   sectionNav: NavModel;
-  pluginId?: string;
 }
 
 export const PluginPageContext = createContext(getInitialPluginPageContext());
 
 PluginPageContext.displayName = 'PluginPageContext';
 
-function getInitialPluginPageContext(pluginId?: string): PluginPageContextType {
+function getInitialPluginPageContext(): PluginPageContextType {
   return {
     sectionNav: {
       // eslint-disable-next-line @grafana/i18n/no-untranslated-strings
@@ -19,13 +18,11 @@ function getInitialPluginPageContext(pluginId?: string): PluginPageContextType {
       // eslint-disable-next-line @grafana/i18n/no-untranslated-strings
       node: { text: 'Plugin page' },
     },
-    pluginId,
   };
 }
 
-export function buildPluginPageContext(sectionNav: NavModel | undefined, pluginId: string): PluginPageContextType {
+export function buildPluginPageContext(sectionNav: NavModel | undefined): PluginPageContextType {
   return {
-    sectionNav: sectionNav ?? getInitialPluginPageContext(pluginId).sectionNav,
-    pluginId,
+    sectionNav: sectionNav ?? getInitialPluginPageContext().sectionNav,
   };
 }

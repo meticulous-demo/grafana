@@ -1,11 +1,10 @@
 import { act, screen } from '@testing-library/react';
-import { Component, useEffect } from 'react';
+import { Component } from 'react';
 import { Routes, Route, Link } from 'react-router-dom-v5-compat';
 import { render } from 'test/test-utils';
 
 import { AppPlugin, PluginType, type AppRootProps, type NavModelItem, PluginIncludeType, OrgRole } from '@grafana/data';
 import { getMockPlugin } from '@grafana/data/test';
-import { selectors } from '@grafana/e2e-selectors';
 import { getPluginSettings, setEchoSrv } from '@grafana/runtime';
 import { refetchPluginSettings } from '@grafana/runtime/internal';
 import { GrafanaRouteWrapper } from 'app/core/navigation/GrafanaRoute';
@@ -157,6 +156,33 @@ describe('AppRootPage', () => {
     enabled: true,
   });
 
+  it('refetches registered plugin settings when re-entering the route after uninstall', async () => {
+    jest.spyOn(console, 'error').mockImplementation();
+    refetchPluginSettingsMock
+      .mockResolvedValueOnce(pluginMeta)
+      .mockRejectedValueOnce(
+        new Error('Unknown Plugin', { cause: { status: 404, data: { message: 'Plugin not found' } } })
+      );
+
+    const plugin = new AppPlugin();
+    plugin.meta = pluginMeta;
+    plugin.root = RootComponent;
+    importAppPluginMock.mockResolvedValue(plugin);
+
+    renderUnderRouter();
+    expect(await screen.findByText('my great component')).toBeVisible();
+
+    await act(async () => {
+      screen.getByRole('link', { name: 'Navigate' }).click();
+    });
+    await act(async () => {
+      screen.getByRole('link', { name: 'Navigate' }).click();
+    });
+
+    expect(await screen.findByText('Assistant onboarding fallback')).toBeVisible();
+    expect(refetchPluginSettingsMock).toHaveBeenCalledTimes(2);
+  });
+
   it("should show a not found page if the plugin settings can't load", async () => {
     jest.spyOn(console, 'error').mockImplementation();
     refetchPluginSettingsMock.mockRejectedValue(new Error('Unknown Plugin'));
@@ -241,61 +267,6 @@ describe('AppRootPage', () => {
       screen.getByRole('link', { name: 'Navigate' }).click();
     });
     expect(RootComponent.timesRendered).toEqual(2);
-  });
-
-  it('should mark the plugin boundary on the page when the plugin provides its own nav', async () => {
-    refetchPluginSettingsMock.mockResolvedValue(pluginMeta);
-
-    const NavChangingRootComponent = ({ onNavChanged }: AppRootProps) => {
-      useEffect(() => {
-        onNavChanged({
-          main: { text: 'My awesome plugin' },
-          node: { text: 'My awesome plugin' },
-        });
-      }, [onNavChanged]);
-
-      return <p>my great component</p>;
-    };
-
-    const plugin = new AppPlugin();
-    plugin.meta = pluginMeta;
-    plugin.root = NavChangingRootComponent;
-    importAppPluginMock.mockResolvedValue(plugin);
-
-    renderUnderRouter();
-
-    expect(await screen.findByTestId(selectors.components.Plugins.appPage('my-awesome-plugin'))).toHaveAttribute(
-      'data-plugin-id',
-      'my-awesome-plugin'
-    );
-    expect(await screen.findByText('my great component')).toBeVisible();
-  });
-
-  it('refetches registered plugin settings when re-entering the route after uninstall', async () => {
-    jest.spyOn(console, 'error').mockImplementation();
-    refetchPluginSettingsMock
-      .mockResolvedValueOnce(pluginMeta)
-      .mockRejectedValueOnce(
-        new Error('Unknown Plugin', { cause: { status: 404, data: { message: 'Plugin not found' } } })
-      );
-
-    const plugin = new AppPlugin();
-    plugin.meta = pluginMeta;
-    plugin.root = RootComponent;
-    importAppPluginMock.mockResolvedValue(plugin);
-
-    renderUnderRouter();
-    expect(await screen.findByText('my great component')).toBeVisible();
-
-    await act(async () => {
-      screen.getByRole('link', { name: 'Navigate' }).click();
-    });
-    await act(async () => {
-      screen.getByRole('link', { name: 'Navigate' }).click();
-    });
-
-    expect(await screen.findByText('Assistant onboarding fallback')).toBeVisible();
-    expect(refetchPluginSettingsMock).toHaveBeenCalledTimes(2);
   });
 
   describe('When accessing using different roles', () => {
