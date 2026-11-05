@@ -54,8 +54,16 @@ export class Panels extends PageObject {
   }
 
   /** Returns all rendered panel bodies below the header */
-  getBodies() {
+  getBodies(): Locator {
     return this.getByGrafanaSelector(this.selectors.components.Panels.Panel.content);
+  }
+
+  /**
+   * Returns the body of the first panel with this exact title
+   * @param scope container to search within, defaults to the whole page
+   */
+  getBody(panelTitle: string, scope?: Locator): Locator {
+    return this.getPanel(panelTitle, scope).getByTestId(this.selectors.components.Panels.Panel.content);
   }
 
   /**

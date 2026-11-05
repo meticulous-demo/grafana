@@ -1,16 +1,18 @@
 import { css, cx } from '@emotion/css';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
-import { base64UrlEncode } from '@grafana/alerting';
+import { useListContactPoints } from '@grafana/alerting/unstable';
 import { type GrafanaTheme2, type IconName } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
 import { Alert, Badge, Button, Icon, LinkButton, Stack, Text, useStyles2 } from '@grafana/ui';
 import { type AlertmanagerConfig } from 'app/plugins/datasource/alertmanager/types';
 
 import { GRAFANA_RULES_SOURCE_NAME } from '../../utils/datasource';
-import { makeEditContactPointLink, makeEditTimeIntervalLink } from '../../utils/misc';
+import { createContactPointSearchLink, makeEditContactPointLink, makeEditTimeIntervalLink } from '../../utils/misc';
 import { createRelativeUrl } from '../../utils/url';
 
+import { PromoteConfirmModal } from './PromoteConfirmModal';
+import { RevertConfirmModal } from './RevertConfirmModal';
 import {
   type StagedExtraConfig,
   encodeRouteMatchersQuery,
@@ -25,13 +27,15 @@ import {
 
 const GRAFANA_AM = { alertmanager: GRAFANA_RULES_SOURCE_NAME };
 
-// Contact points are k8s resources addressed by a UID that is the base64url encoding of their name,
-// so we derive it to deep-link into the (read-only) contact point view page.
-function makeViewContactPointLink(name: string): string {
-  return makeEditContactPointLink(base64UrlEncode(name), GRAFANA_AM);
+// Attempt to construct the contact point view page by UID, falling back to searching the contact points
+// list by title when it's unknown.
+function makeViewContactPointLink(title: string, uid?: string): string {
+  return uid
+    ? makeEditContactPointLink(uid, GRAFANA_AM)
+    : createContactPointSearchLink(title, GRAFANA_RULES_SOURCE_NAME);
 }
 
-// Time intervals (mute timings) are addressed by their raw name in the edit route.
+// The staged config only knows time interval names, so the edit route resolves the name to the resource itself.
 function makeViewTimeIntervalLink(name: string): string {
   return makeEditTimeIntervalLink(name, GRAFANA_AM);
 }
@@ -65,6 +69,12 @@ interface AccordionSection {
 
 interface Props {
   stagedConfig: StagedExtraConfig;
+  /** Whether the current user can merge the staged configuration into the live one. */
+  canPromote: boolean;
+  /** Whether the current user can discard the staged configuration. */
+  canRevert: boolean;
+  /** Written by the external Alertmanager sync, so reverting it would only be undone by the next tick. */
+  isSyncManaged?: boolean;
   /**
    * The live Grafana Alertmanager config the staged one is merged against. Needed to work out which staged
    * resources the backend renames on a name collision, so their View links address the staged copy.
@@ -72,9 +82,19 @@ interface Props {
   liveConfig?: AlertmanagerConfig;
 }
 
-export function StagedConfiguration({ stagedConfig, liveConfig }: Props) {
+export function StagedConfiguration({ stagedConfig, canPromote, canRevert, isSyncManaged, liveConfig }: Props) {
   const styles = useStyles2(getStyles);
+  const [openModal, setOpenModal] = useState<'promote' | 'revert' | null>(null);
+  const noPermissionTooltip = t(
+    'alerting.settings.import.no-write-permission',
+    "You don't have permission to modify the imported configuration."
+  );
   const config = parseStagedAlertmanagerConfig(stagedConfig.alertmanager_config);
+  const { data: contactPoints } = useListContactPoints({}, { skip: !config?.receivers?.length });
+  const receiverUidsByTitle = useMemo(
+    () => new Map((contactPoints?.items ?? []).map((item) => [item.spec.title, item.metadata.name])),
+    [contactPoints]
+  );
 
   if (!config) {
     return (
@@ -120,7 +140,7 @@ export function StagedConfiguration({ stagedConfig, liveConfig }: Props) {
           key={receiverLinkNames[index]}
           label={receiver.name}
           meta={getReceiverIntegrationTypes(receiver).join(', ')}
-          href={makeViewContactPointLink(receiverLinkNames[index])}
+          href={makeViewContactPointLink(receiverLinkNames[index], receiverUidsByTitle.get(receiverLinkNames[index]))}
         />
       )),
     });
@@ -215,17 +235,65 @@ export function StagedConfiguration({ stagedConfig, liveConfig }: Props) {
 
   return (
     <div className={styles.card}>
-      <Stack direction="row" alignItems="center" gap={1}>
-        <Text element="h3" variant="h5">
-          {stagedConfig.identifier}
-        </Text>
-        <Badge
-          color="blue"
-          icon="cloud-upload"
-          text={t('alerting.settings.import.staged-badge', 'Staged · read-only')}
-        />
+      <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1} wrap="wrap">
+        <Stack direction="row" alignItems="center" gap={1}>
+          <Text element="h3" variant="h5">
+            {stagedConfig.identifier}
+          </Text>
+          {isSyncManaged ? (
+            <Badge color="green" icon="sync" text={t('alerting.settings.import.synced-badge', 'Synced · read-only')} />
+          ) : (
+            <Badge
+              color="blue"
+              icon="cloud-upload"
+              text={t('alerting.settings.import.staged-badge', 'Staged · read-only')}
+            />
+          )}
+        </Stack>
+        <Stack direction="row" gap={1}>
+          {!isSyncManaged && (
+            <Button
+              variant="secondary"
+              disabled={!canRevert}
+              tooltip={canRevert ? undefined : noPermissionTooltip}
+              onClick={() => setOpenModal('revert')}
+            >
+              <Trans i18nKey="alerting.settings.import.revert-button">Revert</Trans>
+            </Button>
+          )}
+          <Button
+            variant="primary"
+            icon="cloud-upload"
+            disabled={!canPromote}
+            tooltip={canPromote ? undefined : noPermissionTooltip}
+            onClick={() => setOpenModal('promote')}
+          >
+            <Trans i18nKey="alerting.settings.import.promote-button">Promote to live config</Trans>
+          </Button>
+        </Stack>
       </Stack>
+
+      {isSyncManaged && (
+        <Text variant="bodySmall" color="secondary">
+          <Trans i18nKey="alerting.settings.import.sync-managed-description">
+            This configuration is kept up to date by auto-sync, so it can&apos;t be reverted — disable auto-sync to
+            remove it. Promoting it merges these resources into your live config and stops the sync.
+          </Trans>
+        </Text>
+      )}
+
       <ResourceAccordion sections={sections} />
+
+      {openModal === 'promote' && (
+        <PromoteConfirmModal
+          stagedConfig={stagedConfig}
+          isSyncManaged={isSyncManaged}
+          onDismiss={() => setOpenModal(null)}
+        />
+      )}
+      {openModal === 'revert' && (
+        <RevertConfirmModal stagedConfig={stagedConfig} onDismiss={() => setOpenModal(null)} />
+      )}
     </div>
   );
 }

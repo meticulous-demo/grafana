@@ -1,10 +1,11 @@
-import { test } from '@playwright/test';
+import { type Locator, test } from '@playwright/test';
 
 import { PageObject, type PageObjectArgs } from '../PageObject';
 
 import { AddOptions } from './AddOptions';
 import { ContentOutline } from './ContentOutline';
 import { DashboardOptions } from './DashboardOptions';
+import { FiltersOverview } from './FiltersOverview';
 import { GroupOptions } from './GroupOptions';
 import { PanelOptions } from './PanelOptions';
 import { RowOptions } from './RowOptions';
@@ -17,15 +18,16 @@ import { VariableOptions } from './VariableOptions';
  * dashboard/panel options. Mirrors the @grafana/ui <Sidebar> container that wraps both.
  */
 export class Sidebar extends PageObject {
-  public toolbar: Toolbar;
-  public contentOutline: ContentOutline;
-  public addOptions: AddOptions;
-  public dashboardOptions: DashboardOptions;
-  public variableOptions: VariableOptions;
-  public panelOptions: PanelOptions;
-  public rowOptions: RowOptions;
-  public tabOptions: TabOptions;
-  public groupOptions: GroupOptions;
+  readonly toolbar: Toolbar;
+  readonly contentOutline: ContentOutline;
+  readonly addOptions: AddOptions;
+  readonly dashboardOptions: DashboardOptions;
+  readonly filtersOverview: FiltersOverview;
+  readonly variableOptions: VariableOptions;
+  readonly panelOptions: PanelOptions;
+  readonly rowOptions: RowOptions;
+  readonly tabOptions: TabOptions;
+  readonly groupOptions: GroupOptions;
 
   constructor(args: PageObjectArgs) {
     super(args);
@@ -33,6 +35,7 @@ export class Sidebar extends PageObject {
     this.contentOutline = new ContentOutline(args);
     this.addOptions = new AddOptions(args);
     this.dashboardOptions = new DashboardOptions(args);
+    this.filtersOverview = new FiltersOverview(args);
     this.variableOptions = new VariableOptions(args);
     this.panelOptions = new PanelOptions(args);
     this.rowOptions = new RowOptions(args);
@@ -41,38 +44,43 @@ export class Sidebar extends PageObject {
   }
 
   /** Returns the sidebar container */
-  getContainer() {
+  getContainer(): Locator {
     return this.getByGrafanaSelector(this.selectors.components.Sidebar.container);
   }
 
+  /** Returns the open pane's header title (e.g. "Constant variable" for a selected constant variable) */
+  getPaneTitle(): Locator {
+    return this.getContainer().getByTestId(this.selectors.components.Sidebar.headerTitle);
+  }
+
   /** Goes back to the previous pane by clicking the sidebar's back button */
-  async clickGoBackButton() {
-    await test.step('Click go back button in sidebar', async () => {
+  async goBack() {
+    await test.step('Go back to previous pane', async () => {
       await this.getByGrafanaSelector(this.selectors.components.Sidebar.goBack).click();
     });
   }
 
   /** Returns the dock/undock toggle */
-  getDockToggle() {
+  getDockToggle(): Locator {
     return this.getByGrafanaSelector(this.selectors.components.Sidebar.dockToggle);
   }
 
   /** Closes the open pane */
-  async clickCloseButton() {
-    await test.step('Click close button in sidebar', async () => {
+  async closePane() {
+    await test.step('Close pane', async () => {
       await this.getByGrafanaSelector(this.selectors.components.Sidebar.closePane).click();
     });
   }
 
   /** Duplicates the selected element via the edit pane header */
-  async clickDuplicateButton() {
+  async duplicateSelection() {
     await test.step('Duplicate selected element', async () => {
       await this.getByGrafanaSelector(this.selectors.components.EditPaneHeader.duplicate).click();
     });
   }
 
   /** Copies the selected element via the edit pane header */
-  async clickCopyButton() {
+  async copySelection() {
     await test.step('Copy selected element', async () => {
       await this.getByGrafanaSelector(this.selectors.components.EditPaneHeader.copy).click();
     });
@@ -82,8 +90,8 @@ export class Sidebar extends PageObject {
    * Deletes the selected element(s) via the edit pane header
    * @param confirm when true, also confirms the deletion in the confirmation modal
    */
-  async clickDeleteButton({ confirm = false }: { confirm?: boolean } = {}) {
-    const stepTitle = confirm ? 'Delete selected element(s) (with confirmation)' : 'Click delete button in sidebar';
+  async deleteSelection({ confirm = false }: { confirm?: boolean } = {}) {
+    const stepTitle = confirm ? 'Delete selected element(s) (with confirmation)' : 'Delete selected element(s)';
 
     await test.step(stepTitle, async () => {
       await this.getByGrafanaSelector(this.selectors.components.EditPaneHeader.deleteButton).click();

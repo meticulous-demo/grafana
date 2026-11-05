@@ -4,10 +4,12 @@ import { Stack } from '@grafana/ui';
 import { OptionsPaneCategoryDescriptor } from 'app/features/dashboard/components/PanelEditor/OptionsPaneCategoryDescriptor';
 import { OptionsPaneItemDescriptor } from 'app/features/dashboard/components/PanelEditor/OptionsPaneItemDescriptor';
 
+import { groupSelectionInto } from '../../actions/layout/groupSelectionInto';
 import { AddButton } from '../../sidebar/add-new/AddButton';
 import { getLayoutManagerFor } from '../../utils/getLayoutManagerFor';
 import { DashboardInteractions } from '../../utils/interactions';
 import { type GroupTarget, type GroupingResult, isGroupableLayoutManager } from '../types/DashboardLayoutManager';
+import { type EditActionSource } from '../types/EditableDashboardElement';
 
 const DISABLED: GroupingResult = { enabled: false };
 
@@ -36,20 +38,31 @@ interface Props {
   items: SceneObject[];
 }
 
-export function GroupSelectedActions({ items }: Props) {
+export function useGroupSelection(items: SceneObject[], trackingSource: EditActionSource) {
   const manager = resolveGroupableManager(items);
   const rowGrouping = manager?.canGroupSelectionInto(items, 'row') ?? DISABLED;
   const tabGrouping = manager?.canGroupSelectionInto(items, 'tab') ?? DISABLED;
 
   const group = (target: GroupTarget) => {
-    manager?.groupSelectionInto(items, target);
+    if (!manager) {
+      return;
+    }
+
+    groupSelectionInto({ source: manager.getRoot(), items, target });
 
     if (target === 'row') {
-      DashboardInteractions.trackGroupRowClick();
+      DashboardInteractions.trackGroupRowClick(trackingSource);
     } else {
-      DashboardInteractions.trackGroupTabClick();
+      DashboardInteractions.trackGroupTabClick(trackingSource);
     }
   };
+
+  return { rowGrouping, tabGrouping, group };
+}
+
+export function GroupSelectedActions({ items }: Props) {
+  // This view is only rendered by the sidebar; the popover builds its own controls.
+  const { rowGrouping, tabGrouping, group } = useGroupSelection(items, 'edit_pane');
 
   return (
     <Stack direction="column" gap={1}>

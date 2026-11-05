@@ -1,8 +1,8 @@
-import { useMemo, useRef } from 'react';
+import { lazy, Suspense, useMemo, useRef } from 'react';
 
 import { selectors } from '@grafana/e2e-selectors';
 import { Trans, t } from '@grafana/i18n';
-import { config } from '@grafana/runtime';
+import { useSceneObjectState } from '@grafana/scenes';
 import { Alert, Field, Input, TextLink } from '@grafana/ui';
 import { OptionsPaneCategoryDescriptor } from 'app/features/dashboard/components/PanelEditor/OptionsPaneCategoryDescriptor';
 import { OptionsPaneItemDescriptor } from 'app/features/dashboard/components/PanelEditor/OptionsPaneItemDescriptor';
@@ -10,20 +10,39 @@ import { RepeatRowSelect2 } from 'app/features/dashboard/components/RepeatRowSel
 import { SHARED_DASHBOARD_QUERY } from 'app/plugins/datasource/dashboard/constants';
 import { MIXED_DATASOURCE_NAME } from 'app/plugins/datasource/mixed/MixedDataSource';
 
+import { edit } from '../../actions/utils/edit';
 import { useConditionalRenderingEditor } from '../../conditional-rendering/hooks/useConditionalRenderingEditor';
-import { SectionFiltersCategoryTitle, SectionFiltersList } from '../../sidebar/SectionFiltersList';
-import { SectionVariablesCategoryTitle, SectionVariablesList } from '../../sidebar/SectionVariablesList';
-import { dashboardEditActions } from '../../sidebar/shared';
+import { AddSectionAnnotationButton, useSectionAnnotationLayers } from '../../sidebar/SectionAnnotationActions';
+import {
+  getSectionFiltersCount,
+  AddSectionFilterButton,
+  SectionFiltersCategoryTitle,
+  SectionFiltersList,
+} from '../../sidebar/SectionFiltersList';
+import {
+  getSectionVariablesCount,
+  AddSectionVariableButton,
+  SectionVariablesCategoryTitle,
+  SectionVariablesList,
+} from '../../sidebar/SectionVariablesList';
 import { SidebarCategoryType } from '../../sidebar/types';
-import { getQueryRunnerFor } from '../../utils/utils';
+import { getQueryRunnerFor } from '../../utils/getQueryRunnerFor';
 import { useLayoutCategory } from '../layouts-shared/DashboardLayoutSelector';
 import { generateUniqueTitle, useSidebarInputAutoFocus } from '../layouts-shared/utils';
 
 import { type TabItem } from './TabItem';
 
+// The list pulls in the annotation editor and data source picker; keep them out of the main bundle
+const SectionAnnotationsList = lazy(() =>
+  import(/* webpackChunkName: "dashboard-edit-actions" */ '../../sidebar/SectionAnnotationsList').then((m) => ({
+    default: m.SectionAnnotationsList,
+  }))
+);
+
 export function useSidebarOptions(this: TabItem, isNewElement: boolean): OptionsPaneCategoryDescriptor[] {
   const model = this;
-  const { layout } = model.useState();
+  // The canvas can remount during DnD loading while this editor remains mounted.
+  const { layout } = useSceneObjectState(model, { shouldActivateOrKeepAlive: true });
 
   const tabCategory = useMemo(
     () =>
@@ -58,12 +77,45 @@ export function useSidebarOptions(this: TabItem, isNewElement: boolean): Options
   );
 
   const layoutCategory = useLayoutCategory(layout);
+  const annotationLayers = useSectionAnnotationLayers(model);
+
+  const sectionAnnotationsCategory = useMemo(() => {
+    // Like the dashboard-level category, show no count in the header; the sub-lists carry their own counts
+    const title = t('dashboard.tabs-layout.tab-options.section-annotations.title', 'Annotations');
+    const category = new OptionsPaneCategoryDescriptor({
+      title,
+      renderTitle: () => title,
+      id: SidebarCategoryType.TabSectionAnnotations,
+      isOpenDefault: true,
+      isDashboardSidebar: true,
+      itemsCount: annotationLayers.length,
+      headerActions: <AddSectionAnnotationButton sectionOwner={model} />,
+    });
+
+    category.addItem(
+      new OptionsPaneItemDescriptor({
+        title: '',
+        id: SidebarCategoryType.TabSectionAnnotationsList,
+        skipField: true,
+        render: () => (
+          <Suspense fallback={null}>
+            <SectionAnnotationsList sectionOwner={model} />
+          </Suspense>
+        ),
+      })
+    );
+
+    return category;
+  }, [annotationLayers.length, model]);
 
   const sectionVariablesCategory = useMemo(() => {
     const category = new OptionsPaneCategoryDescriptor({
       title: t('dashboard.tabs-layout.tab-options.section-variables.title', 'Variables'),
       id: SidebarCategoryType.TabSectionVariables,
       isOpenDefault: true,
+      isDashboardSidebar: true,
+      itemsCount: getSectionVariablesCount(model),
+      headerActions: <AddSectionVariableButton sectionOwner={model} />,
       renderTitle: (isExpanded: boolean) => (
         <SectionVariablesCategoryTitle sectionOwner={model} isExpanded={isExpanded} />
       ),
@@ -86,6 +138,9 @@ export function useSidebarOptions(this: TabItem, isNewElement: boolean): Options
       title: t('dashboard.tabs-layout.tab-options.section-filters.title', 'Filters'),
       id: SidebarCategoryType.TabSectionFilters,
       isOpenDefault: true,
+      isDashboardSidebar: true,
+      itemsCount: getSectionFiltersCount(model),
+      headerActions: <AddSectionFilterButton sectionOwner={model} />,
       renderTitle: () => <SectionFiltersCategoryTitle />,
     });
 
@@ -103,8 +158,9 @@ export function useSidebarOptions(this: TabItem, isNewElement: boolean): Options
 
   const editOptions = [
     tabCategory,
-    ...(config.featureToggles.dashboardUnifiedDrilldownControls ? [sectionFiltersCategory] : []),
+    sectionFiltersCategory,
     sectionVariablesCategory,
+    sectionAnnotationsCategory,
     ...layoutCategory,
     repeatCategory,
   ];
@@ -149,8 +205,8 @@ function TabTitleInput({ tab, isNewElement, id }: { tab: TabItem; isNewElement: 
   );
 }
 
-function TabRepeatSelect({ tab, id }: { tab: TabItem; id?: string }) {
-  const { layout } = tab.useState();
+export function TabRepeatSelect({ tab, id }: { tab: TabItem; id?: string }) {
+  const { layout, repeatByVariable } = tab.useState();
 
   const isAnyPanelUsingDashboardDS = layout.getVizPanels().some((vizPanel) => {
     const runner = getQueryRunnerFor(vizPanel);
@@ -166,8 +222,23 @@ function TabRepeatSelect({ tab, id }: { tab: TabItem; id?: string }) {
       <RepeatRowSelect2
         id={id}
         sceneContext={tab}
-        repeat={tab.state.repeatByVariable}
-        onChange={(repeat) => tab.onChangeRepeat(repeat)}
+        repeat={repeatByVariable}
+        onChange={(repeat) => {
+          // The select reports "Disable repeating" as an empty string
+          const nextRepeat = repeat || undefined;
+
+          if (nextRepeat === repeatByVariable) {
+            return;
+          }
+
+          edit({
+            meta: { actionId: 'tab.changeRepeat' },
+            description: t('dashboard.edit-actions.tab-repeat-variable', 'Tab repeat by'),
+            source: tab,
+            perform: () => tab.onChangeRepeat(nextRepeat),
+            undo: () => tab.onChangeRepeat(repeatByVariable),
+          });
+        }}
       />
       {isAnyPanelUsingDashboardDS ? (
         <Alert
@@ -208,7 +279,8 @@ function editTabTitleAction(tab: TabItem, title: string, prevTitle: string) {
     title = generateUniqueTitle('New tab', existingNames);
   }
 
-  dashboardEditActions.edit({
+  edit({
+    meta: { actionId: 'tab.changeTitle' },
     description: t('dashboard.edit-actions.tab-title', 'Change tab title'),
     source: tab,
     perform: () => tab.onChangeTitle(title),

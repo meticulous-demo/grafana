@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - 'demo/base/**'
   pull_request:
   # Important: We need the workflow to be triggered on workflow_dispatch events,
   # so that Meticulous can run the workflow on the base commit to compare

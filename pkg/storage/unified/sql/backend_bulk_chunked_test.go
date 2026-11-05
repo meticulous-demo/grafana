@@ -63,9 +63,9 @@ func (r *commitRecorder) byPhase(phase string) []chunkedCommit {
 // large enough that a tiny per-chunk budget forces multiple history chunks.
 func chunkedTestValue(name string, version, padBytes int) []byte {
 	pad := strings.Repeat("x", padBytes)
-	return []byte(fmt.Sprintf(
+	return fmt.Appendf(nil,
 		`{"apiVersion":"shorturl.grafana.app/v1beta1","kind":"ShortURL","metadata":{"name":%q,"namespace":"default"},"spec":{"path":"d/%s-v%d","pad":%q}}`,
-		name, name, version, pad))
+		name, name, version, pad)
 }
 
 // buildMultiVersionBulk emits `versions` ADDED/MODIFIED events per name (plus a
@@ -77,7 +77,7 @@ func buildMultiVersionBulk(names []string, versions, padBytes int, deleteLatest 
 	expected := map[string][]byte{}
 	for _, name := range names {
 		var lastValue []byte
-		for v := 0; v < versions; v++ {
+		for v := range versions {
 			action := resourcepb.BulkRequest_MODIFIED
 			if v == 0 {
 				action = resourcepb.BulkRequest_ADDED
@@ -271,8 +271,8 @@ type killAfterKBatchIterator struct {
 	idx   int // number of NextBatch calls so far
 }
 
-func (it *killAfterKBatchIterator) NextBatch() bool {
-	if it.idx >= len(it.items) {
+func (it *killAfterKBatchIterator) NextBatch(ctx context.Context) bool {
+	if ctx.Err() != nil || it.idx >= len(it.items) {
 		return false
 	}
 	it.idx++
@@ -289,7 +289,9 @@ func (it *killAfterKBatchIterator) RollbackRequested() bool {
 
 // Next and Request only satisfy the non-batch BulkRequestIterator interface; the
 // chunked path uses NextBatch/Batch/RollbackRequested, so these are unreachable.
-func (it *killAfterKBatchIterator) Next() bool                       { return it.NextBatch() }
+func (it *killAfterKBatchIterator) Next() bool {
+	return it.NextBatch(context.Background())
+}
 func (it *killAfterKBatchIterator) Request() *resourcepb.BulkRequest { return it.Batch()[0] }
 
 // TestIntegrationBulkChunkedKillMidMigrationThenRestart checks cleanup and
@@ -393,7 +395,7 @@ func TestIntegrationBulkChunkedSQLiteRegression(t *testing.T) {
 // enabled, the given per-chunk byte budget, and observer installed as bulkCommitObserver
 // so tests can record every committed chunk.
 func newChunkedTestBackend(t *testing.T, chunkBytes int64, observer func(phase string, bytes int64)) (*backend, sqldb.DB) {
-	dbstore := db.InitTestDB(t)
+	dbstore := db.InitTestDB(t) //nolint:staticcheck // legacy shared-DB test setup; migrate to NewTestStore
 	eDB, err := dbimpl.ProvideResourceDB(dbstore, setting.NewCfg(), nil)
 	require.NoError(t, err)
 	require.NotNil(t, eDB)

@@ -1,9 +1,6 @@
-import { test, expect } from './fixtures';
+import { expect, test } from './fixtures';
 
 test.use({
-  featureToggles: {
-    dashboardNewLayouts: true,
-  },
   viewport: { width: 1920, height: 1080 },
 });
 
@@ -86,7 +83,7 @@ test.describe(
       await expect(sidebar.getDockToggle()).not.toBeVisible();
 
       // Close the pane (de-select) via the X button — sidebar should re-hide
-      await sidebar.clickCloseButton();
+      await sidebar.closePane();
 
       await expect(sidebar.getContainer()).not.toBeVisible();
       await expect(sidebar.toolbar.getVisibilityToggle()).toBeVisible();

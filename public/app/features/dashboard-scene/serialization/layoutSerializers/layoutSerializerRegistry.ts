@@ -6,7 +6,6 @@ import { type PanelIdGenerator } from '../../utils/dashboardSceneGraph';
 
 import { deserializeAutoGridLayout } from './AutoGridLayoutSerializer';
 import { deserializeDefaultGridLayout } from './DefaultGridLayoutSerializer';
-import { deserializeNotebookLayout } from './NotebookLayoutSerializer';
 import { deserializeRowsLayout } from './RowsLayoutSerializer';
 import { deserializeTabsLayout } from './TabsLayoutSerializer';
 
@@ -15,7 +14,8 @@ interface LayoutSerializerRegistryItem extends RegistryItem {
     layout: DashboardV2Spec['layout'],
     elements: DashboardV2Spec['elements'],
     preload: boolean,
-    panelIdGenerator?: PanelIdGenerator
+    panelIdGenerator?: PanelIdGenerator,
+    isSnapshot?: boolean
   ) => AnyDashboardLayoutManager;
 }
 
@@ -41,11 +41,6 @@ export const layoutDeserializerRegistry: Registry<LayoutSerializerRegistryItem> 
         id: 'TabsLayout',
         name: 'Tabs Layout',
         deserialize: deserializeTabsLayout,
-      },
-      {
-        id: 'NotebookLayout',
-        name: 'Notebook Layout',
-        deserialize: deserializeNotebookLayout,
       },
     ];
   });

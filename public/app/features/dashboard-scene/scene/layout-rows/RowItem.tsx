@@ -1,8 +1,8 @@
 import React from 'react';
 
-import { store } from '@grafana/data';
+import { locationUtil, store } from '@grafana/data';
 import { t } from '@grafana/i18n';
-import { config, logWarning } from '@grafana/runtime';
+import { locationService, logWarning } from '@grafana/runtime';
 import {
   NewSceneObjectAddedEvent,
   sceneGraph,
@@ -18,15 +18,16 @@ import { appEvents } from 'app/core/app_events';
 import { LS_ROW_COPY_KEY } from 'app/core/constants';
 import { ShowConfirmModalEvent } from 'app/types/events';
 
+import { edit } from '../../actions/utils/edit';
 import { ConditionalRenderingGroup } from '../../conditional-rendering/group/ConditionalRenderingGroup';
 import { serializeRow } from '../../serialization/layoutSerializers/RowsLayoutSerializer';
 import { getElements } from '../../serialization/layoutSerializers/utils';
 import { SectionFiltersSet } from '../../settings/variables/SectionFiltersSet';
-import { dashboardEditActions } from '../../sidebar/shared';
-import { cloneSectionVariableSet, removeRepeatLocalVariableFromSet } from '../../utils/clone';
+import { cloneSectionDataLayerSet, cloneSectionVariableSet, removeRepeatLocalVariableFromSet } from '../../utils/clone';
 import { type PanelIdGenerator } from '../../utils/dashboardSceneGraph';
 import { trackDropItemCrossLayout } from '../../utils/tracking';
 import { getDashboardSceneFor, getSlugForRowOrTab, interpolateSectionTitle } from '../../utils/utils';
+import { DashboardDataLayerSet } from '../DashboardDataLayerSet';
 import { AutoGridItem } from '../layout-auto-grid/AutoGridItem';
 import { AutoGridLayout } from '../layout-auto-grid/AutoGridLayout';
 import { AutoGridLayoutManager } from '../layout-auto-grid/AutoGridLayoutManager';
@@ -44,6 +45,7 @@ import { useSidebarOptions } from './RowItemEditor';
 import { RowItemRenderer } from './RowItemRenderer';
 import { RowItems } from './RowItems';
 import { RowsLayoutManager } from './RowsLayoutManager';
+import { getRowSlugPath } from './scrollToRow';
 
 export interface RowItemState extends SceneObjectState {
   layout: DashboardLayoutManager;
@@ -81,6 +83,8 @@ export class RowItem
       title: state?.title ?? t('dashboard.rows-layout.row.new', 'New row'),
       layout: state?.layout ?? AutoGridLayoutManager.createEmpty(),
       conditionalRendering: state?.conditionalRendering ?? ConditionalRenderingGroup.createEmpty(),
+      // Query runners collect data layers when they activate, so a set attached later would not reach panels
+      $data: state?.$data ?? new DashboardDataLayerSet({}),
     });
 
     this.addActivationHandler(() => this._activationHandler());
@@ -115,13 +119,19 @@ export class RowItem
 
   public getOutlineChildren(isEditing?: boolean): SceneObject[] {
     const layoutChildren = this.state.layout.getOutlineChildren();
+    const sectionAnnotations =
+      this.state.$data instanceof DashboardDataLayerSet && this.state.$data.state.annotationLayers.length > 0
+        ? [this.state.$data]
+        : [];
+
     if (isEditing && this.state.$variables) {
-      return [
-        ...(config.featureToggles.dashboardUnifiedDrilldownControls ? [this.getFiltersSet()] : []),
-        this.state.$variables,
-        ...layoutChildren,
-      ];
+      return [this.getFiltersSet(), this.state.$variables, ...sectionAnnotations, ...layoutChildren];
     }
+
+    if (isEditing && sectionAnnotations.length > 0) {
+      return [...sectionAnnotations, ...layoutChildren];
+    }
+
     return layoutChildren;
   }
 
@@ -138,6 +148,15 @@ export class RowItem
     return getSlugForRowOrTab(this, siblings);
   }
 
+  /** Returns an absolute url that scrolls this row into view when the dashboard is opened */
+  public getUrl(): string {
+    const urlWithRowParam = locationUtil.getUrlForPartial(locationService.getLocation(), {
+      drow: getRowSlugPath(this),
+    });
+
+    return new URL(urlWithRowParam, window.location.origin).toString();
+  }
+
   public switchLayout(layout: DashboardLayoutManager, skipUndo?: boolean) {
     const currentLayout = this.state.layout;
 
@@ -151,7 +170,8 @@ export class RowItem
       return;
     }
 
-    dashboardEditActions.edit({
+    edit({
+      meta: { actionId: 'layout.switch', scope: 'row' },
       description: t('dashboard.edit-actions.switch-layout-row', 'Switch layout'),
       source: this,
       perform,
@@ -190,7 +210,10 @@ export class RowItem
   }
 
   public createMultiSelectedElement(items: SceneObject[]): RowItems {
-    return new RowItems(items.filter((item) => item instanceof RowItem));
+    return new RowItems(
+      items.filter((item) => item instanceof RowItem),
+      getDashboardSceneFor(this)
+    );
   }
 
   public onDuplicate() {
@@ -200,10 +223,12 @@ export class RowItem
   // panelIdGenerator is a shared sequential counter created by the parent layout
   // we forward id to ensure sibling tabs never produce duplicate panel IDs
   public duplicate(panelIdGenerator?: PanelIdGenerator): RowItem {
+    const clonedData = cloneSectionDataLayerSet(this.state.$data);
     return this.clone({
       key: undefined,
       layout: this.getLayout().duplicate(panelIdGenerator),
       $variables: cloneSectionVariableSet(this.state.$variables),
+      ...(clonedData ? { $data: clonedData } : {}),
     });
   }
 

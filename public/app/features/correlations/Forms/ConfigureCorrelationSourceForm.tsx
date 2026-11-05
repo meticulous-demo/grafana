@@ -3,7 +3,7 @@ import { Controller, useFormContext } from 'react-hook-form';
 
 import { type DataSourceInstanceSettings, type GrafanaTheme2 } from '@grafana/data';
 import { Trans, t } from '@grafana/i18n';
-import { useDataSourceInstanceSettings } from '@grafana/runtime/unstable';
+import { useDataSourceInstanceSettings } from '@grafana/runtime';
 import { Card, Field, FieldSet, Input, Stack, useStyles2 } from '@grafana/ui';
 import { DataSourcePicker } from 'app/features/datasources/components/picker/DataSourcePicker';
 
@@ -15,6 +15,13 @@ import { type FormDTO } from './types';
 import { getInputId } from './utils';
 
 const getStyles = (theme: GrafanaTheme2) => ({
+  card: css({
+    background: theme.colors.background.secondary,
+
+    '&:hover': {
+      background: theme.colors.emphasize(theme.colors.background.secondary, 0.03),
+    },
+  }),
   label: css({
     maxWidth: theme.spacing(80),
   }),
@@ -148,7 +155,7 @@ export const ConfigureCorrelationSourceForm = () => {
             />
           </Field>
           {variables.length > 0 && (
-            <Card noMargin>
+            <Card noMargin className={styles.card}>
               <Card.Heading>{formText.heading}</Card.Heading>
               <Card.Description>
                 {formText.descriptionPre}

@@ -1,13 +1,16 @@
-import test, { expect, type Page } from '@playwright/test';
+import test, { type APIRequestContext, expect, type Page } from '@playwright/test';
 
 import { type E2ESelectorGroups } from '@grafana/plugin-e2e';
 
+import { type Spec as DashboardV2Spec } from '../../../packages/grafana-schema/src/schema/dashboard/v2';
 import testV2Dashboard from '../../dashboards/TestV2Dashboard.json';
-import { type Sidebar, type Controls } from '../page-objects';
+import { type Controls, type Sidebar } from '../page-objects';
+
+import { createDashboardViaAPI, getGrafanaBuildVersion } from './utils';
 
 /**
  * Multi-step user flows composed from page objects, grouped by domain
- * (`flows.dashboards.*`, `flows.variables.*`, `flows.navigation.*`).
+ * (`flows.dashboards.*`, `flows.variables.*`, `flows.contentOutline.*`, `flows.navigation.*`).
  *
  * A flow IS a reusable sequence of user actions that several specs need
  * verbatim: test setup (provisioning, import), save-and-confirm cycles,
@@ -22,7 +25,7 @@ import { type Sidebar, type Controls } from '../page-objects';
  * - pixel/timing-sensitive mechanics like drag-and-drop or `boundingBox()`
  *   geometry — those live in `utils.ts`.
  *
- * Add a new flow only when a second spec needs the same sequence, in the
+ * Add a new flow only when three specs need the same sequence, in the
  * domain namespace it acts on (create it if missing).
  */
 export const flows = {
@@ -43,11 +46,7 @@ export const flows = {
         await page.getByTestId(selectors.components.DashboardImportPage.textarea).fill(importJson);
         await page.getByTestId(selectors.components.DashboardImportPage.submit).click();
 
-        // we always append a timestamp so every import gets a unique title. Collisions happen on test retries
-        // and when parallel workers import dashboards sharing the same title (several specs reuse titles like "Paste tab")
-        // a collision does not fail the test (the import overwrites the existing dashboard),
-        // but Playwright traces show a validation error in the UI and tests may run against a stale dashboard
-        const uniqueTitle = `${title} [${Date.now().toString(36)}-${test.info().workerIndex}]`;
+        const uniqueTitle = buildUniqueDashboardTitle(title);
         await page.getByTestId(selectors.components.ImportDashboardForm.name).fill(uniqueTitle);
 
         if (options.requiresDataSourceSelection) {
@@ -71,8 +70,31 @@ export const flows = {
         return uniqueTitle;
       });
     },
-    async saveDashboardAndCloseToast(page: Page, controls: Controls, title?: string) {
-      await controls.saveDashboard(title);
+    /**
+     * Saves via the save drawer, closes the success toast, and reloads by default.
+     * Pass `reloadPageAfterSave: false` when the next step must keep the current page
+     * (e.g. measure layout, exit edit mode, or navigate with goto).
+     * Pass `title` only for a new (never saved) dashboard, or when you intentionally
+     * want Save as with a new name. Omit it when the dashboard already has a title
+     * (imported or previously saved) so the drawer does a plain Save.
+     */
+    async saveDashboard(
+      page: Page,
+      controls: Controls,
+      { reloadPageAfterSave = true, title }: { reloadPageAfterSave?: boolean; title?: string } = {}
+    ): Promise<string | undefined> {
+      const uniqueTitle = title ? buildUniqueDashboardTitle(title) : undefined;
+      const pathnameBeforeSave = new URL(page.url()).pathname;
+
+      await controls.saveDashboard(uniqueTitle);
+
+      // A first "Save"/"Save as" creates a new dashboard, then the app redirects to its /d/<uid> URL
+      // so we wait for that redirect to make sure that a reload (or the next step) targets the saved dashboard
+      if (uniqueTitle) {
+        await expect(page, 'Expected a redirect to the newly saved dashboard').toHaveURL(
+          (url) => url.pathname.startsWith('/d/') && url.pathname !== pathnameBeforeSave
+        );
+      }
 
       // wait for the toast
       const toast = page.getByRole('status', { name: 'Dashboard saved' });
@@ -80,45 +102,109 @@ export const flows = {
 
       // close toast, we do this to prevent any incorrect assertion when several saves occur fast. i.e. the 1st toast is still visible but the 2nd save has not occurred yet
       await toast.getByRole('button', { name: 'Close alert' }).click();
+
+      if (reloadPageAfterSave) {
+        await page.reload();
+      }
+
+      return uniqueTitle;
+    },
+    async createAndOpenDashboard({
+      page,
+      request,
+      selectors,
+      spec,
+    }: {
+      page: Page;
+      request: APIRequestContext;
+      selectors: E2ESelectorGroups;
+      spec: (grafanaVersion: string) => DashboardV2Spec;
+    }) {
+      const grafanaVersion = await getGrafanaBuildVersion(page);
+
+      const { url } = await createDashboardViaAPI(request, selectors, spec(grafanaVersion));
+
+      await test.step('Open dashboard', async () => {
+        await test.step('Undock mega menu (via local storage)', async () => {
+          await page.addInitScript(() => {
+            // eslint-disable-next-line @grafana/no-direct-local-storage-access
+            window.localStorage.setItem('grafana.navigation.docked', 'false');
+          });
+        });
+
+        await page.goto(url);
+      });
     },
   },
   variables: {
-    async addNewGenericVariable(
-      page: Page,
-      sidebar: Sidebar,
-      controls: Controls,
-      variable: Variable,
-      skipEnterEditMode = false
-    ) {
+    async addNewGenericVariable(sidebar: Sidebar, controls: Controls, variable: Variable, skipEnterEditMode = false) {
       if (!skipEnterEditMode) {
         await controls.enterEditMode();
       }
 
       await sidebar.toolbar.clickButton('Add');
-      await sidebar.addOptions.clickNewVariableButton();
 
-      await sidebar.variableOptions.selectVariableType(variable.type);
-
-      // New variable creation schedules a delayed autofocus to name input
-      // Let that timer finish before we interact to prevent focus on the wrong input
-      await page.waitForTimeout(250);
+      // Ad hoc filters are not in the variable type picker; they have their own "Filter and Group by" entry
+      if (variable.type === 'adhoc') {
+        await sidebar.addOptions.addFilter();
+      } else {
+        await sidebar.addOptions.addVariable();
+        await sidebar.variableOptions.selectVariableType(variable.type);
+        // Only the variable type picker autofocuses the name input; adding a Filter does not
+        await expect(sidebar.variableOptions.getNameInput()).toBeFocused();
+      }
 
       await sidebar.variableOptions.setName(variable.name);
       if (variable.label) {
         await sidebar.variableOptions.setLabel(variable.label);
       }
     },
-    async addNewTextBoxVariable(page: Page, sidebar: Sidebar, controls: Controls, variable: Variable) {
-      await flows.variables.addNewGenericVariable(page, sidebar, controls, variable);
+    async addNewTextBoxVariable(sidebar: Sidebar, controls: Controls, variable: Variable) {
+      await flows.variables.addNewGenericVariable(sidebar, controls, variable);
 
       await sidebar.variableOptions.textbox.setValue(variable.value);
       if (variable.display) {
         await sidebar.variableOptions.selectDisplay(variable.display);
       }
     },
+    async addNewFilterVariable(
+      controls: Controls,
+      sidebar: Sidebar,
+      variable: { name: string; label: string; dataSource: string }
+    ): Promise<void> {
+      await test.step('Create a Filter variable using unified controls', async () => {
+        await controls.enterEditMode();
+        await sidebar.toolbar.clickButton('Add');
+        await sidebar.addOptions.addFilter();
+
+        await sidebar.variableOptions.setName(variable.name);
+        await sidebar.variableOptions.setLabel(variable.label);
+        await sidebar.variableOptions.adhoc.selectDatasource(variable.dataSource);
+      });
+    },
     async fillVariableValue(page: Page, controls: Controls, varName: string, text: string) {
       await controls.variables.setValue(varName, text);
       await page.waitForLoadState('networkidle');
+    },
+    async delete(sidebar: Sidebar, variableLabel: string) {
+      return test.step(`Delete variable "${variableLabel}"`, async () => {
+        await flows.contentOutline.selectVariable(sidebar, variableLabel);
+        await sidebar.deleteSelection({ confirm: true });
+      });
+    },
+  },
+  contentOutline: {
+    /**
+     * Opens the content outline and selects a variable from it, which shows the variable's pane in the sidebar.
+     * The "Variables" node is toggled, not just expanded: call this once per page load, as the outline keeps its expanded state until a reload.
+     * @param variableLabel the variable's label when set, otherwise its name
+     */
+    async selectVariable(sidebar: Sidebar, variableLabel: string) {
+      await test.step(`Select variable "${variableLabel}" in the content outline`, async () => {
+        await sidebar.toolbar.clickButton('Outline');
+        await sidebar.contentOutline.toggleNode('Variables');
+        await sidebar.contentOutline.clickItem(variableLabel);
+      });
     },
   },
   navigation: {
@@ -171,3 +257,10 @@ function stripMetadataNameFromImportJson(input: string): string {
     return input;
   }
 }
+
+// we always append a timestamp so every import gets a unique title. Collisions happen on test retries
+// and when parallel workers import dashboards sharing the same title
+// a collision does not fail the test (the import overwrites the existing dashboard),
+// but Playwright traces show a validation error in the UI and tests may run against a stale dashboard
+const buildUniqueDashboardTitle = (title = test.info().title) =>
+  `${title} [${Date.now().toString(36)}-${test.info().workerIndex}]`;
