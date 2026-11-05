@@ -1,0 +1,219 @@
+name: Meticulous
+
+on:
+  push:
+    branches:
+      - main
+      - 'demo/base/**'
+  pull_request:
+  # Important: We need the workflow to be triggered on workflow_dispatch events,
+  # so that Meticulous can run the workflow on the base commit to compare
+  # against if an existing workflow hasn't run
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+
+permissions: {}
+
+jobs:
+  detect-changes:
+    # Always run on push to main / workflow_dispatch (needed for base comparison runs).
+    # On pull_request, only same-repo non-draft PRs.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false)
+    name: Detect whether code changed
+    runs-on: ubuntu-latest-16-cores
+    permissions:
+      contents: read
+    outputs:
+      # Build when non-test frontend changes: Meticulous only exercises the UI.
+      # On push/workflow_dispatch always treat as changed so base runs aren't skipped.
+      frontend-src: ${{ github.event_name == 'pull_request' && steps.detect-changes.outputs.frontend-src || 'true' }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: true # required to get more history in the changed-files action
+          fetch-depth: 0
+          filter: blob:none
+      - name: Detect changes
+        id: detect-changes
+        if: github.event_name == 'pull_request'
+        uses: ./.github/actions/change-detection
+        with:
+          self: .github/workflows/pr-meticulous.yml
+
+  setup:
+    name: setup
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.frontend-src == 'true'
+    runs-on: ubuntu-latest-16-cores
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.output.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Set up version
+        run: jq -r .version package.json | sed -s "s/pre/${BUILD_ID}/g" > VERSION
+        env:
+          BUILD_ID: ${{ github.run_id }}
+      - id: output
+        run: echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+
+  build-frontend:
+    name: build frontend
+    runs-on: ubuntu-latest-16-cores
+    needs: [setup]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+      - name: Install JS dependencies
+        run: yarn install --immutable
+      - name: Build frontend
+        run: yarn build
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: pr-frontend
+          path: public
+          retention-days: 1
+
+  build-backend:
+    name: build backend
+    runs-on: ubuntu-latest-16-cores
+    needs: [setup]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/build-go
+        with:
+          build-number: ${{ github.run_id }}
+          build-version: ${{ needs.setup.outputs.version }}
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: pr-backend
+          path: bin/linux/amd64
+          retention-days: 1
+
+  build-targz:
+    name: build targz
+    runs-on: ubuntu-latest-16-cores
+    needs:
+      - setup
+      - build-frontend
+      - build-backend
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/build-targz
+        with:
+          build-number: ${{ github.run_id }}
+          build-version: ${{ needs.setup.outputs.version }}
+          frontend-artifact: pr-frontend
+          backend-artifact: pr-backend
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: pr-targz
+          path: dist
+          retention-days: 1
+
+  build-docker:
+    name: build docker
+    runs-on: ubuntu-latest-16-cores
+    needs:
+      - setup
+      - build-targz
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: pr-targz
+          path: dist
+      - name: Set up Docker Buildx
+        run: docker buildx create --use
+      - name: Build docker image
+        env:
+          GOOS: linux
+          GOARCH: amd64
+          BUILD_NUMBER: ${{ github.run_id }}
+          BUILD_VERSION: ${{ needs.setup.outputs.version }}
+        run: |
+          for TARGZ in dist/*.tar.gz; do break; done
+          TAG_VERSION="${BUILD_VERSION//+/-}"
+          make build-docker \
+            -o "$TARGZ" \
+            BUILD_VERSION="$BUILD_VERSION" \
+            BUILD_NUMBER="$BUILD_NUMBER" \
+            DOCKER_TAG="grafana/grafana-image-tags:${TAG_VERSION}-amd64"
+      - name: Stage docker artifact
+        run: |
+          mkdir -p upload
+          cp dist/*.docker.tar.gz upload/
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: pr-docker
+          path: upload
+          retention-days: 1
+
+  run-meticulous-tests:
+    needs: [build-docker]
+    name: Run Meticulous tests
+    runs-on: ubuntu-latest-16-cores
+    continue-on-error: true
+    permissions:
+      actions: write
+      contents: read
+      issues: write
+      pull-requests: write
+      statuses: read
+    env:
+      METICULOUS_API_TOKEN: ${{ secrets.METICULOUS_API_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: pr-docker
+          path: .
+
+      - name: Load Docker image under test
+        id: load-image
+        run: |
+          set -euo pipefail
+          for f in *.docker.tar.gz; do break; done
+          IMAGE="$(docker load -i "$f" | sed -n 's/^Loaded image: //p' | sed -n '1p')"
+          if [ -z "$IMAGE" ]; then
+            echo "Unable to load Docker image from $f"
+            exit 1
+          fi
+          echo "IMAGE_UNDER_TEST=$IMAGE" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Run Meticulous tests
+        if: env.METICULOUS_API_TOKEN != ''
+        uses: alwaysmeticulous/report-diffs-action/upload-container@89c6081b30d17cfcc410b5c19c269cd7a4d67cdf # v1
+        with:
+          api-token: ${{ env.METICULOUS_API_TOKEN }}
+          image-tag: ${{ steps.load-image.outputs.IMAGE_UNDER_TEST }}
+          container-port: 3000
+          container-env: |
+            GF_AUTH_ANONYMOUS_ENABLED=true
+            GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
