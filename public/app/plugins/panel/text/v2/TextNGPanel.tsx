@@ -38,6 +38,7 @@ import { TextNGCodeView } from './TextNGCodeView';
 import { TextNGFooter } from './TextNGFooter';
 import { TextNGHtmlView } from './TextNGHtmlView';
 import { TextNGTruncationNotice } from './TextNGTruncationNotice';
+import { type TextSandboxProps } from './TextSandbox';
 import { type TextNGEditorChange } from './editor/TextNGEditor';
 import { getEditorLayoutStyles } from './editor/editorLayout';
 import { DEFAULT_VIEW_MODE, type ViewMode } from './editor/viewMode';
@@ -78,6 +79,8 @@ export function TextNGPanel(props: Props) {
   const styles = useStyles2(getStyles);
   const replaceVariables = useThemedReplaceVariables(props.replaceVariables);
   const isEditing = app === CoreApp.PanelEditor;
+  // Repeated copies share `id`. The dashboard gives each copy its own id in the request.
+  const consent = { panelId: data.request?.panelId ?? id, panelTitle: title, dashboardUid: data.request?.dashboardUID };
   const content = options.content ?? defaultOptions.content ?? '';
   // Gated here and not only in the options pane: a panel saved while the flag was on
   // still carries its per-row mode, and the pane cannot withhold what is already set.
@@ -275,10 +278,17 @@ export function TextNGPanel(props: Props) {
         onViewChange={setView}
         transparent={transparent}
         hasTitle={Boolean(title)}
+        consent={consent}
       />
     </Suspense>
   ) : (
-    <TextNGView {...processed} code={options.code} fitContent={fitContentOn} contentRef={contentRef} />
+    <TextNGView
+      {...processed}
+      code={options.code}
+      fitContent={fitContentOn}
+      contentRef={contentRef}
+      consent={consent}
+    />
   );
 
   // While editing, the footer belongs to the editor, below its panes.
@@ -328,9 +338,20 @@ interface TextNGViewProps extends ProcessedContent {
   fitContent?: boolean;
   contentRef?: Ref<HTMLDivElement>;
   transparent?: boolean;
+  consent?: TextSandboxProps['consent'];
 }
 
-function TextNGView({ mode, content, error, code, fitContent, contentRef, transparent, hasData }: TextNGViewProps) {
+function TextNGView({
+  mode,
+  content,
+  error,
+  code,
+  fitContent,
+  contentRef,
+  transparent,
+  hasData,
+  consent,
+}: TextNGViewProps) {
   const styles = useStyles2(getStyles);
   // Measured on the panel's own box, which the frame cannot resize, so the fill cannot feed back.
   const [fillRef, { height: fillHeight }] = useMeasure<HTMLDivElement>();
@@ -365,6 +386,7 @@ function TextNGView({ mode, content, error, code, fitContent, contentRef, transp
       html={content}
       hasData={hasData}
       minHeight={fitContent ? undefined : fillHeight}
+      consent={consent}
       className={cx('markdown-html', fitContent ? styles.markdownHtmlFit : styles.markdownHtml)}
       testId="TextNGPanel-converted-content"
     />
