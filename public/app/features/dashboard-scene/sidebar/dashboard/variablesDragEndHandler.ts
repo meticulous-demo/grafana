@@ -1,47 +1,9 @@
 import { type DropResult } from '@hello-pangea/dnd';
 
 import { VariableHide } from '@grafana/data';
-import { t } from '@grafana/i18n';
-import { SceneVariableSet, type SceneVariable } from '@grafana/scenes';
-import { appEvents } from 'app/core/app_events';
-import { ShowConfirmModalEvent } from 'app/types/events';
+import { type SceneVariable, type SceneVariableSet } from '@grafana/scenes';
 
 import { edit } from '../../actions/utils/edit';
-import { removeVariable } from '../../actions/variable/removeVariable';
-import { removeOptedInPredefinedVariable } from '../../utils/removeOptedInPredefinedVariable';
-
-export function confirmDeleteVariable(variable: SceneVariable) {
-  appEvents.publish(
-    new ShowConfirmModalEvent({
-      title: t('dashboard-scene.variable-editable-element.delete-title', 'Delete variable'),
-      text: t('dashboard-scene.variable-editable-element.delete-text', 'Are you sure you want to delete: {{name}}?', {
-        name: variable.state.name,
-      }),
-      yesText: t('dashboard-scene.variable-editable-element.delete-confirm', 'Delete variable'),
-      onConfirm: () => {
-        const set = variable.parent;
-        if (set instanceof SceneVariableSet) {
-          removeVariable({ source: set, removedObject: variable });
-        }
-      },
-    })
-  );
-}
-
-export function confirmRemovePredefinedVariable(variable: SceneVariable) {
-  appEvents.publish(
-    new ShowConfirmModalEvent({
-      title: t('dashboard-scene.variable-editable-element.remove-title', 'Remove variable'),
-      text: t('dashboard-scene.variable-editable-element.remove-text', 'Are you sure you want to remove: {{name}}?', {
-        name: variable.state.name,
-      }),
-      yesText: t('dashboard-scene.variable-editable-element.remove-confirm', 'Remove'),
-      onConfirm: () => {
-        void removeOptedInPredefinedVariable(variable);
-      },
-    })
-  );
-}
 
 export interface ListIds {
   visible: string;
@@ -103,7 +65,6 @@ export function createDragEndHandler(
     const draggableSet = new Set(reordered);
 
     edit({
-      meta: { actionId: 'variable.reorder' },
       source: variableSet,
       description,
       perform: () => {

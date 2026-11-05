@@ -1,21 +1,10 @@
-import { fireEvent, render, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { VariableHide } from '@grafana/data';
-import { selectors } from '@grafana/e2e-selectors';
-import {
-  AdHocFiltersVariable,
-  ConstantVariable,
-  CustomVariable,
-  GroupByVariable,
-  SceneVariableSet,
-  type SceneVariable,
-} from '@grafana/scenes';
-import { appEvents } from 'app/core/app_events';
-import { ShowConfirmModalEvent } from 'app/types/events';
+import { AdHocFiltersVariable, ConstantVariable, SceneVariableSet, type SceneVariable } from '@grafana/scenes';
 
 import { DashboardScene } from '../../scene/DashboardScene';
-import { toControlSourceRef } from '../../utils/predefinedVariables';
 import { activateFullSceneTree } from '../../utils/test-utils';
 
 import { DashboardFiltersList } from './DashboardFiltersList';
@@ -27,11 +16,7 @@ jest.mock('../add-new/AddFilters', () => ({
 jest.mock('../../utils/interactions', () => ({
   DashboardInteractions: {
     editSessionStarted: jest.fn(),
-    editPeriodStarted: jest.fn(),
-    editPeriodEnded: jest.fn(),
-    editActorFirstChange: jest.fn(),
     addFilterButtonClicked: jest.fn(),
-    variableActionButtonClicked: jest.fn(),
   },
 }));
 
@@ -42,7 +27,7 @@ jest.mock('react-use', () => ({
   useLocalStorage: () => [{}, () => {}],
 }));
 
-function renderFiltersList(variables: SceneVariable[] = [], options?: { includePredefined?: boolean }) {
+function renderFiltersList(variables: SceneVariable[] = []) {
   const user = userEvent.setup();
 
   const variableSet = new SceneVariableSet({ variables });
@@ -53,16 +38,13 @@ function renderFiltersList(variables: SceneVariable[] = [], options?: { includeP
   activateFullSceneTree(dashboardScene);
   jest.spyOn(dashboardScene.state.sidebar, 'selectObject');
 
-  const renderResult = render(
-    <DashboardFiltersList variableSet={variableSet} includePredefined={options?.includePredefined} />
-  );
+  const renderResult = render(<DashboardFiltersList variableSet={variableSet} />);
 
   return {
     ...renderResult,
     user,
     elements: {
       dashboardScene,
-      variableSet,
       aboveListItems: () => within(renderResult.getByTestId('filters-list-visible')).getAllByTestId('filter-name'),
       controlsMenuListItems: () =>
         within(renderResult.getByTestId('filters-list-controls-menu')).getAllByTestId('filter-name'),
@@ -88,23 +70,15 @@ function buildTestFilters() {
   };
 }
 
-afterEach(() => {
-  jest.restoreAllMocks();
-});
-
 describe('<DashboardFiltersList />', () => {
-  test('renders 3 sections (one per filter display type)', async () => {
+  test('renders 3 sections (one per filter display type)', () => {
     const { visibleFilter1, visibleFilter2, controlsMenuFilter1, hiddenFilter1 } = buildTestFilters();
-    const { container, getByRole, elements } = renderFiltersList([
+    const { getByRole, elements } = renderFiltersList([
       hiddenFilter1,
       controlsMenuFilter1,
       visibleFilter2,
       visibleFilter1,
     ]);
-
-    await waitFor(() => {
-      expect(container.querySelectorAll('[data-rfd-drag-handle-draggable-id]')).toHaveLength(4);
-    });
 
     [/above dashboard/i, /controls menu/i, /hidden/i].forEach((name) => {
       expect(getByRole('heading', { name })).toBeInTheDocument();
@@ -121,42 +95,14 @@ describe('<DashboardFiltersList />', () => {
   });
 
   describe('User interactions', () => {
-    describe('filter list interactions', () => {
-      test('clicking the edit button selects the filter in the pane', async () => {
+    describe('when a filter name is clicked', () => {
+      test('selects the filter in the pane', async () => {
         const { visibleFilter1 } = buildTestFilters();
-        const { user, getByText, getByTestId, elements } = renderFiltersList([visibleFilter1]);
-        const key = visibleFilter1.state.key ?? visibleFilter1.state.name;
+        const { user, getByText, elements } = renderFiltersList([visibleFilter1]);
 
-        await user.hover(getByText(visibleFilter1.state.name));
-        await user.click(getByTestId(selectors.components.PanelEditor.ElementEditPane.List.ListItem.editButton(key)));
+        await user.click(getByText(visibleFilter1.state.name));
 
         expect(elements.dashboardScene.state.sidebar.selectObject).toHaveBeenCalledWith(visibleFilter1);
-      });
-
-      test('clicking the delete button triggers confirmation modal', async () => {
-        const publishSpy = jest.spyOn(appEvents, 'publish');
-        const { visibleFilter1 } = buildTestFilters();
-        const { user, getByText, getByTestId } = renderFiltersList([visibleFilter1]);
-        const key = visibleFilter1.state.key ?? visibleFilter1.state.name;
-
-        await user.hover(getByText(visibleFilter1.state.name));
-        await user.click(getByTestId(selectors.components.PanelEditor.ElementEditPane.List.ListItem.deleteButton(key)));
-
-        expect(publishSpy).toHaveBeenCalledWith(expect.any(ShowConfirmModalEvent));
-      });
-
-      test('clicking the duplicate button creates a duplicate filter', async () => {
-        const { visibleFilter1 } = buildTestFilters();
-        const { user, getByText, getByTestId, elements } = renderFiltersList([visibleFilter1]);
-        const key = visibleFilter1.state.key ?? visibleFilter1.state.name;
-
-        await user.hover(getByText(visibleFilter1.state.name));
-        await user.click(
-          getByTestId(selectors.components.PanelEditor.ElementEditPane.List.ListItem.duplicateButton(key))
-        );
-
-        expect(elements.variableSet.state.variables).toHaveLength(2);
-        expect(elements.variableSet.state.variables[1].state.name).toBe('visibleFilter1_copy1');
       });
     });
 
@@ -168,9 +114,6 @@ describe('<DashboardFiltersList />', () => {
         direction: 'up' | 'down',
         positions = 1
       ) {
-        await waitFor(() => {
-          expect(container.querySelectorAll('[data-rfd-drag-handle-draggable-id]').length).toBeGreaterThan(itemIndex);
-        });
         const dragHandles = container.querySelectorAll('[data-rfd-drag-handle-draggable-id]');
         const handle = dragHandles[itemIndex] as HTMLElement;
         handle.focus();
@@ -214,9 +157,6 @@ describe('<DashboardFiltersList />', () => {
 
         const { container, findByText } = render(<DashboardFiltersList variableSet={variableSet} />);
 
-        await waitFor(() => {
-          expect(container.querySelectorAll('[data-rfd-drag-handle-draggable-id]').length).toBeGreaterThan(0);
-        });
         const dragHandles = container.querySelectorAll('[data-rfd-drag-handle-draggable-id]');
         const handle = dragHandles[0] as HTMLElement;
         handle.focus();
@@ -231,45 +171,5 @@ describe('<DashboardFiltersList />', () => {
         expect(names).toEqual(['visibleFilter2', 'queryVar', 'visibleFilter1']);
       });
     });
-  });
-});
-
-describe('predefined filters in the sidebar list', () => {
-  test('places filter and group-by variables in the display bucket their hide setting selects', async () => {
-    const localFilter = new AdHocFiltersVariable({ name: 'localFilter', type: 'adhoc', hide: VariableHide.dontHide });
-    const localGroupBy = new GroupByVariable({ name: 'localGroupBy', datasource: null, hide: VariableHide.dontHide });
-    const globalFilter = new AdHocFiltersVariable({
-      name: 'globalFilter',
-      type: 'adhoc',
-      origin: toControlSourceRef({ type: 'global' }),
-    });
-    const folderGroupBy = new GroupByVariable({
-      name: 'folderGroupBy',
-      datasource: null,
-      hide: VariableHide.inControlsMenu,
-      origin: toControlSourceRef({ type: 'folder', folderUid: 'folder-1' }),
-    });
-    const globalCustom = new CustomVariable({
-      name: 'globalCustom',
-      query: 'a,b',
-      origin: toControlSourceRef({ type: 'global' }),
-    });
-
-    const { getByText, queryByText, queryByRole, findByText, user } = renderFiltersList(
-      [localFilter, localGroupBy, folderGroupBy, globalCustom, globalFilter],
-      { includePredefined: true }
-    );
-
-    expect(queryByRole('heading', { name: /^global/i })).not.toBeInTheDocument();
-    expect(queryByRole('heading', { name: /^folder/i })).not.toBeInTheDocument();
-    expect(getByText('globalFilter').closest('ul')).toHaveAttribute('data-testid', 'filters-list-visible');
-    expect(getByText('folderGroupBy').closest('ul')).toHaveAttribute('data-testid', 'filters-list-controls-menu');
-    expect(getByText('localFilter')).toBeInTheDocument();
-    expect(getByText('localGroupBy')).toBeInTheDocument();
-    expect(queryByText('globalCustom')).not.toBeInTheDocument();
-    expect(getByText('globalFilter').closest('[data-rfd-drag-handle-draggable-id]')).toBeNull();
-
-    await user.hover(getByText('folderGroupBy'));
-    expect(await findByText('This variable is defined on the folder level')).toBeInTheDocument();
   });
 });

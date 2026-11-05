@@ -1,13 +1,12 @@
 import { type ReactNode, useId, useMemo } from 'react';
 
 import { t, Trans } from '@grafana/i18n';
-import { useFlagGrafanaDashboardGlobalVariables } from '@grafana/runtime/internal';
-import { type SceneObject, SceneVariableSet } from '@grafana/scenes';
+import { config } from '@grafana/runtime';
+import { type SceneObject, SceneVariableSet, sceneUtils } from '@grafana/scenes';
 import { Button } from '@grafana/ui';
 import { OptionsPaneCategoryDescriptor } from 'app/features/dashboard/components/PanelEditor/OptionsPaneCategoryDescriptor';
 import { OptionsPaneItemDescriptor } from 'app/features/dashboard/components/PanelEditor/OptionsPaneItemDescriptor';
 
-import { DashboardAnnotationsDataLayer } from '../../scene/DashboardAnnotationsDataLayer';
 import { type DashboardDataLayerSet } from '../../scene/DashboardDataLayerSet';
 import { type DashboardScene } from '../../scene/DashboardScene';
 import { useLayoutCategory } from '../../scene/layouts-shared/DashboardLayoutSelector';
@@ -21,16 +20,11 @@ import { dashboardSceneGraph } from '../../utils/dashboardSceneGraph';
 import { VariablesDependenciesButton } from '../../variables/VariablesDependenciesButton';
 import { SidebarCategoryType } from '../types';
 
-import { AddAnnotationButton, DashboardAnnotationsList } from './DashboardAnnotationsList';
+import { DashboardAnnotationsList } from './DashboardAnnotationsList';
 import { DashboardDescriptionInput, DashboardTitleInput } from './DashboardBasicOptions';
-import { AddFilterIconButton, DashboardFiltersList } from './DashboardFiltersList';
+import { AddFilterButton, DashboardFiltersList } from './DashboardFiltersList';
 import { AddLinkButton, DashboardLinksList } from './DashboardLinksList';
 import { AddVariableButton, DashboardVariablesList } from './DashboardVariablesList';
-import {
-  countSidebarVariables,
-  isFilterOrGroupByVariable,
-  partitionSidebarVariables,
-} from './partitionSidebarVariables';
 
 function useDashboardSidebarOptions(dashboard: DashboardScene): OptionsPaneCategoryDescriptor[] {
   const { body } = dashboard.useState();
@@ -106,7 +100,7 @@ export class DashboardEditableElement implements EditableDashboardElement {
       return body.getOutlineChildren();
     }
     return [
-      this.getFiltersSet(),
+      ...(config.featureToggles.dashboardUnifiedDrilldownControls ? [this.getFiltersSet()] : []),
       $variables,
       dashboardSceneGraph.getDataLayers(this.dashboard),
       this.getLinksSet(),
@@ -136,82 +130,81 @@ export class DashboardEditableElement implements EditableDashboardElement {
 function useFiltersCategory(dashboard: DashboardScene): OptionsPaneCategoryDescriptor[] {
   const { $variables } = dashboard.useState();
   const filterListId = useId();
-  const includePredefined = useFlagGrafanaDashboardGlobalVariables();
+  const addFilterButtonId = useId();
 
   return useMemo(() => {
-    const filterCount =
-      $variables instanceof SceneVariableSet
-        ? countSidebarVariables(
-            partitionSidebarVariables($variables.state.variables.filter(isFilterOrGroupByVariable), {
-              includePredefined,
-              excludeFilters: false,
-            })
-          )
-        : 0;
+    if (!config.featureToggles.dashboardUnifiedDrilldownControls) {
+      return [];
+    }
 
-    const title = t('dashboard-scene.use-filters-category.category.title.filters', 'Filters');
     const category = new OptionsPaneCategoryDescriptor({
       title: t('dashboard.sidebar.dashboard-options.filters', 'Filters'),
       id: SidebarCategoryType.DashboardFilters,
-      headerActions: <AddFilterIconButton dashboard={dashboard} />,
-      itemsCount: filterCount,
-      isDashboardSidebar: true,
-      renderTitle: () => title,
     });
 
-    if ($variables instanceof SceneVariableSet && filterCount > 0) {
+    const hasFilters =
+      $variables instanceof SceneVariableSet && $variables.state.variables.some(sceneUtils.isAdHocVariable);
+
+    if (hasFilters) {
       category.addItem(
         new OptionsPaneItemDescriptor({
           title: '',
           id: filterListId,
           skipField: true,
-          render: () => <DashboardFiltersList variableSet={$variables} includePredefined={includePredefined} />,
+          render: () => <DashboardFiltersList variableSet={$variables} />,
         })
       );
     }
 
+    category.addItem(
+      new OptionsPaneItemDescriptor({
+        title: '',
+        id: addFilterButtonId,
+        skipField: true,
+        render: () => <AddFilterButton dashboard={dashboard} />,
+      })
+    );
+
     return [category];
-  }, [$variables, filterListId, dashboard, includePredefined]);
+  }, [$variables, addFilterButtonId, filterListId, dashboard]);
 }
 
 function useVariablesCategory(dashboard: DashboardScene): OptionsPaneCategoryDescriptor[] {
   const { $variables } = dashboard.useState();
   const variableListId = useId();
-  const includePredefined = useFlagGrafanaDashboardGlobalVariables();
+  const addVariableButtonId = useId();
 
   return useMemo(() => {
-    const variableCount =
-      $variables instanceof SceneVariableSet
-        ? countSidebarVariables(
-            partitionSidebarVariables($variables.state.variables, {
-              includePredefined,
-              excludeFilters: true,
-            })
-          )
-        : 0;
-
-    const title = t('dashboard-scene.use-variables-category.category.title.variables', 'Variables');
     const category = new OptionsPaneCategoryDescriptor({
       title: t('dashboard.sidebar.dashboard-options.variables', 'Variables'),
       id: SidebarCategoryType.DashboardVariables,
-      headerActions: <AddVariableButton dashboard={dashboard} />,
-      itemsCount: variableCount,
-      renderTitle: () => title,
-      isDashboardSidebar: true,
     });
 
-    if ($variables instanceof SceneVariableSet && variableCount > 0) {
-      category.addItem(
-        new OptionsPaneItemDescriptor({
-          title: '',
-          id: variableListId,
-          skipField: true,
-          render: () => (
-            <DashboardVariablesList sourceVariableSet={$variables} showPredefinedGroups={includePredefined} />
-          ),
-        })
-      );
+    if ($variables instanceof SceneVariableSet && $variables.state.variables.length) {
+      const hasVariables = config.featureToggles.dashboardUnifiedDrilldownControls
+        ? $variables.state.variables.some((v) => !sceneUtils.isAdHocVariable(v))
+        : true;
+
+      if (hasVariables) {
+        category.addItem(
+          new OptionsPaneItemDescriptor({
+            title: '',
+            id: variableListId,
+            skipField: true,
+            render: () => <DashboardVariablesList sourceVariableSet={$variables} />,
+          })
+        );
+      }
     }
+
+    category.addItem(
+      new OptionsPaneItemDescriptor({
+        title: '',
+        id: addVariableButtonId,
+        skipField: true,
+        render: () => <AddVariableButton dashboard={dashboard} />,
+      })
+    );
 
     if ($variables?.state.variables.length) {
       category.addItem(
@@ -225,24 +218,16 @@ function useVariablesCategory(dashboard: DashboardScene): OptionsPaneCategoryDes
     }
 
     return [category];
-  }, [$variables, variableListId, dashboard, includePredefined]);
+  }, [$variables, addVariableButtonId, variableListId, dashboard]);
 }
 
 function useAnnotationsCategory(dataLayerSet: DashboardDataLayerSet): OptionsPaneCategoryDescriptor[] {
   const annotationsListId = useId();
-  const { annotationLayers } = dataLayerSet.useState();
 
   return useMemo(() => {
-    const annotationCount = annotationLayers.filter((a) => a instanceof DashboardAnnotationsDataLayer).length;
-
-    const title = t('dashboard-scene.use-annotations-category.category.title.annotations', 'Annotations');
     const category = new OptionsPaneCategoryDescriptor({
       title: t('dashboard.sidebar.dashboard-options.annotations', 'Annotations'),
       id: SidebarCategoryType.DashboardAnnotations,
-      headerActions: <AddAnnotationButton dataLayerSet={dataLayerSet} />,
-      itemsCount: annotationCount,
-      renderTitle: () => title,
-      isDashboardSidebar: true,
     });
 
     category.addItem(
@@ -255,22 +240,18 @@ function useAnnotationsCategory(dataLayerSet: DashboardDataLayerSet): OptionsPan
     );
 
     return [category];
-  }, [dataLayerSet, annotationLayers, annotationsListId]);
+  }, [dataLayerSet, annotationsListId]);
 }
 
 function useLinksCategory(dashboard: DashboardScene): OptionsPaneCategoryDescriptor[] {
   const { links } = dashboard.useState();
   const linksListId = useId();
+  const addLinkButtonId = useId();
 
   return useMemo(() => {
-    const title = t('dashboard-scene.use-links-category.category.title.links', 'Links');
     const category = new OptionsPaneCategoryDescriptor({
       title: t('dashboard.sidebar.dashboard-options.links', 'Links'),
       id: SidebarCategoryType.DashboardLinks,
-      headerActions: <AddLinkButton dashboard={dashboard} />,
-      itemsCount: links.length,
-      renderTitle: () => title,
-      isDashboardSidebar: true,
     });
 
     if (links.length) {
@@ -284,6 +265,15 @@ function useLinksCategory(dashboard: DashboardScene): OptionsPaneCategoryDescrip
       );
     }
 
+    category.addItem(
+      new OptionsPaneItemDescriptor({
+        title: '',
+        id: addLinkButtonId,
+        skipField: true,
+        render: () => <AddLinkButton dashboard={dashboard} />,
+      })
+    );
+
     return [category];
-  }, [dashboard, links.length, linksListId]);
+  }, [addLinkButtonId, dashboard, links.length, linksListId]);
 }

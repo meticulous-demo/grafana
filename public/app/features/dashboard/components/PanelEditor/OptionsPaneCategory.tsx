@@ -1,5 +1,5 @@
 import { css, cx, keyframes } from '@emotion/css';
-import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState, useRef } from 'react';
 import * as React from 'react';
 import { useLocalStorage } from 'react-use';
 
@@ -20,15 +20,8 @@ export interface OptionsPaneCategoryProps {
   forceOpen?: boolean;
   className?: string;
   isNested?: boolean;
-  isDashboardSidebar?: boolean;
   children: ReactNode;
   sandboxId?: string;
-  /**
-   * Actions rendered in the header next to the collapse toggle (e.g. an "add" button).
-   */
-  headerActions?: React.ReactNode;
-  headerActionPlacement?: 'left' | 'right';
-  compactIcons?: boolean;
   /**
    * When set will disable category and show tooltip with disabledText on hover
    */
@@ -49,24 +42,14 @@ export const OptionsPaneCategory = React.memo(
     className,
     itemsCount,
     isNested = false,
-    isDashboardSidebar = false,
     sandboxId,
-    headerActions,
-    headerActionPlacement = 'right',
-    compactIcons = false,
     disabledText,
   }: OptionsPaneCategoryProps) => {
-    const generatedId = useId();
-    const headingId = `${generatedId}-heading`;
-    const contentId = `${generatedId}-content`;
     const [savedState, setSavedState] = useLocalStorage(getOptionGroupStorageKey(id), {
       isExpanded: isOpenDefault,
     });
 
-    const isSavedAsExpanded = savedState?.isExpanded ?? isOpenDefault;
-    // collapse if there are explicitly no items
-    const isExpandedInitialValue = forceOpen || (isSavedAsExpanded && (itemsCount === undefined || itemsCount > 0));
-
+    const isExpandedInitialValue = forceOpen || (savedState?.isExpanded ?? isOpenDefault);
     const [isExpanded, setIsExpanded] = useState(isExpandedInitialValue);
     const [isHighlighted, setIsHighlighted] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
@@ -143,30 +126,9 @@ export const OptionsPaneCategory = React.memo(
     }
 
     const styles = useStyles2(getStyles);
-    const collapseIcon = isExpanded ? 'angle-up' : 'angle-down';
-    const toggleButton = (
-      <Button
-        aria-label={
-          isExpanded
-            ? t('dashboard.options-pane-category.aria-label-collapse', 'Collapse {{title}} category', { title })
-            : t('dashboard.options-pane-category.aria-label-expand', 'Expand {{title}} category', { title })
-        }
-        data-testid={selectors.components.OptionsGroup.toggle(id)}
-        type="button"
-        fill="text"
-        size={compactIcons ? 'sm' : 'md'}
-        variant="secondary"
-        aria-expanded={isExpanded}
-        className={cx(styles.toggleButton, compactIcons && styles.toggleButtonCompact)}
-        icon={headerActionPlacement === 'left' ? (isExpanded ? 'angle-down' : 'angle-right') : collapseIcon}
-        onClick={onToggle}
-      />
-    );
-
     const boxStyles = cx(
       {
         [styles.box]: true,
-        [styles.boxNestedSidebar]: isNested && isDashboardSidebar,
         [styles.boxNestedExpanded]: isNested && isExpanded,
       },
       className
@@ -180,8 +142,6 @@ export const OptionsPaneCategory = React.memo(
 
     const bodyStyles = cx(styles.body, {
       [styles.bodyNested]: isNested,
-      [styles.bodySidebar]: isDashboardSidebar,
-      [styles.bodyNestedSidebar]: isNested && isDashboardSidebar,
     });
 
     /**
@@ -196,7 +156,7 @@ export const OptionsPaneCategory = React.memo(
           ref={ref}
         >
           <div className={headerStyles}>
-            <h3 id={headingId} className={cx(styles.title, styles.titleDisabled)}>
+            <h3 id={`button-${id}`} className={cx(styles.title, styles.titleDisabled)}>
               {renderTitle(isExpanded)}
             </h3>
             <Tooltip interactive={!(typeof disabledText === 'string')} content={disabledText}>
@@ -218,15 +178,28 @@ export const OptionsPaneCategory = React.memo(
         {/* this just provides a better experience for mouse users */}
         {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
         <div className={headerStyles} onClick={onToggle}>
-          {headerActionPlacement === 'left' && toggleButton}
-          <h3 id={headingId} className={cx(styles.title, isExpanded && styles.titleExpanded)}>
+          <h3 id={`button-${id}`} className={cx(styles.title, isExpanded && styles.titleExpanded)}>
             {renderTitle(isExpanded)}
           </h3>
-          {headerActions && <div className={styles.headerActions}>{headerActions}</div>}
-          {headerActionPlacement === 'right' && toggleButton}
+          <Button
+            aria-label={
+              isExpanded
+                ? t('dashboard.options-pane-category.aria-label-collapse', 'Collapse {{title}} category', { title })
+                : t('dashboard.options-pane-category.aria-label-expand', 'Expand {{title}} category', { title })
+            }
+            data-testid={selectors.components.OptionsGroup.toggle(id)}
+            type="button"
+            fill="text"
+            size="md"
+            variant="secondary"
+            aria-expanded={isExpanded}
+            className={styles.toggleButton}
+            icon={isExpanded ? 'angle-up' : 'angle-down'}
+            onClick={onToggle}
+          />
         </div>
         {isExpanded && (
-          <div className={bodyStyles} id={contentId} role="group" aria-labelledby={headingId}>
+          <div className={bodyStyles} id={id} aria-labelledby={`button-${id}`}>
             {children}
           </div>
         )}
@@ -243,15 +216,11 @@ const getStyles = (theme: GrafanaTheme2) => ({
   boxNestedExpanded: css({
     marginBottom: theme.spacing(2),
   }),
-  boxNestedSidebar: css({
-    borderTop: 'none',
-    padding: theme.spacing(0),
-  }),
   title: css({
     flexGrow: 1,
     overflow: 'hidden',
     lineHeight: 1.5,
-    fontSize: theme.typography.body.fontSize,
+    fontSize: '1rem',
     fontWeight: theme.typography.fontWeightMedium,
     margin: 0,
     color: theme.colors.text.secondary,
@@ -270,33 +239,17 @@ const getStyles = (theme: GrafanaTheme2) => ({
       background: theme.colors.emphasize(theme.colors.background.primary, 0.03),
     },
   }),
+  toggleButton: css({
+    alignSelf: 'baseline',
+  }),
   headerExpanded: css({
     color: theme.colors.text.primary,
   }),
   headerNested: css({
-    padding: theme.spacing(0.5, 0),
-  }),
-  toggleButton: css({
-    alignSelf: 'baseline',
-    justifyContent: 'center',
-    '&:focus, &:focus-visible': {
-      background: 'none',
-    },
-  }),
-  toggleButtonCompact: css({
-    width: theme.spacing(3),
-    height: theme.spacing(3),
-    padding: 0,
-  }),
-  headerActions: css({
-    display: 'flex',
-    alignItems: 'center',
+    padding: theme.spacing(0.5, 0, 0.5, 0),
   }),
   body: css({
-    padding: theme.spacing(1, 2),
-  }),
-  bodySidebar: css({
-    padding: theme.spacing(0, 1),
+    padding: theme.spacing(1, 2, 1, 2),
   }),
   titleDisabled: css({
     color: theme.colors.text.disabled,
@@ -309,14 +262,13 @@ const getStyles = (theme: GrafanaTheme2) => ({
   bodyNested: css({
     position: 'relative',
     paddingRight: 0,
-  }),
-  bodyNestedSidebar: css({
+
     '&:before': {
       content: "''",
       position: 'absolute',
       top: 0,
-      left: theme.spacing(2),
-      width: 1,
+      left: '1px',
+      width: '1px',
       height: '100%',
       background: theme.colors.border.weak,
     },
