@@ -1,0 +1,59 @@
+# Paths excluded from Meticulous coverage. Gitignore semantics, relative to the repo root.
+# Only code that can never execute in a browser session belongs here.
+
+# Tests, stories and their helpers
+**/__tests__/
+**/__mocks__/
+**/__stories__/
+**/*.test.*
+**/*.spec.*
+**/*.story.*
+**/*.stories.*
+**/test-fixtures/
+**/fixtures/
+**/testfiles/
+**/testSetup/
+**/test-utils/
+**/*[tT]est[uU]tils.ts
+**/*[tT]est[uU]tils.tsx
+
+# Mock data and mock APIs (imported only by tests)
+**/mocks.ts
+**/mocks.tsx
+public/app/features/alerting/unified/mockApi.ts
+public/app/features/alerting/unified/mockGrafanaNotifiers.ts
+public/app/features/home/AlertsIncidents/mockIncidentsApi.ts
+public/app/features/home/AlertsIncidents/mockOnCallSchedulesApi.ts
+packages/grafana-ui/src/components/Select/mockOptions.tsx
+public/mockServiceWorker.js
+
+# End-to-end suites, tooling, backend and build configuration
+e2e/
+e2e-playwright/
+scripts/
+devenv/
+emails/
+pkg/
+.github/
+packages/grafana-test-utils/
+packages/grafana-eslint-rules/
+packages/grafana-plugin-configs/
+packages/grafana-openapi/
+packages/rollup.config.parts.ts
+/*.config.ts
+/*.config.js
+/jest.config*.js
+
+# grafana-sql: only a few helpers are used by core Grafana (SQL expressions); the rest
+# (query builder, config editors) is only used by the MySQL/Postgres/MSSQL plugins,
+# which play.grafana.org loads from the plugins CDN rather than this build.
+packages/grafana-sql/**
+!packages/grafana-sql/src/
+!packages/grafana-sql/src/index.ts
+!packages/grafana-sql/src/components/
+!packages/grafana-sql/src/components/visual-query-builder/
+!packages/grafana-sql/src/components/visual-query-builder/Preview.tsx
+!packages/grafana-sql/src/dialects/
+!packages/grafana-sql/src/dialects/sqlIdentifier.ts
+!packages/grafana-sql/src/utils/
+!packages/grafana-sql/src/utils/formatSQL.ts
