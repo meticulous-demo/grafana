@@ -38,6 +38,7 @@ pkg/
 packages/grafana-test-utils/
 packages/grafana-eslint-rules/
 packages/grafana-plugin-configs/
+packages/grafana-openapi/
 packages/rollup.config.parts.ts
 /*.config.ts
 /*.config.js
