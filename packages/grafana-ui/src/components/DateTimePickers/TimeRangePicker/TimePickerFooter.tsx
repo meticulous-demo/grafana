@@ -2,7 +2,7 @@ import { css, cx } from '@emotion/css';
 import { useCallback, useId, useState } from 'react';
 import * as React from 'react';
 
-import { type GrafanaTheme2, type TimeZone } from '@grafana/data';
+import { getTimeZoneInfo, type GrafanaTheme2, type TimeZone } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
 import { t, Trans } from '@grafana/i18n';
 
@@ -17,7 +17,6 @@ import { TimeZonePicker } from '../TimeZonePicker';
 import { TimeZoneDescription } from '../TimeZonePicker/TimeZoneDescription';
 import { TimeZoneOffset } from '../TimeZonePicker/TimeZoneOffset';
 import { getTimeZoneTitle, TimeZoneTitle } from '../TimeZonePicker/TimeZoneTitle';
-import { getTimeZoneDisplayInfo } from '../TimeZonePicker/timeZoneUtils';
 import { getMonthOptions } from '../options';
 
 interface Props {
@@ -56,7 +55,7 @@ export const TimePickerFooter = (props: Props) => {
     return null;
   }
 
-  const info = getTimeZoneDisplayInfo(timeZone, timestamp);
+  const info = getTimeZoneInfo(timeZone, timestamp);
 
   if (!info) {
     return null;
@@ -74,7 +73,7 @@ export const TimePickerFooter = (props: Props) => {
             <div className={style.spacer} />
             <TimeZoneDescription info={info} />
           </div>
-          <TimeZoneOffset offset={`UTC${info.offset}`} />
+          <TimeZoneOffset timeZone={timeZone} timestamp={timestamp} />
         </div>
         <div className={style.spacer} />
         <Button

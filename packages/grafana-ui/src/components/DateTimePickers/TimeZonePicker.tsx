@@ -1,15 +1,22 @@
-import { useMemo, useCallback, useState } from 'react';
+import { useMemo, useCallback } from 'react';
 
-import { type SelectableValue, type TimeZone, InternalTimeZones } from '@grafana/data';
-import { canonicalZoneName, getTimeZonesAt } from '@grafana/data/unstable';
+import {
+  type SelectableValue,
+  getTimeZoneInfo,
+  type TimeZoneInfo,
+  getTimeZoneGroups,
+  type GroupedTimeZones,
+  type TimeZone,
+  InternalTimeZones,
+} from '@grafana/data';
 import { t } from '@grafana/i18n';
 
 import { Select } from '../Select/Select';
 
 import { TimeZoneGroup } from './TimeZonePicker/TimeZoneGroup';
+import { formatUtcOffset } from './TimeZonePicker/TimeZoneOffset';
 import { CompactTimeZoneOption, WideTimeZoneOption, type SelectableZone } from './TimeZonePicker/TimeZoneOption';
 import { getTimeZoneTitle } from './TimeZonePicker/TimeZoneTitle';
-import { getTimeZoneDisplayInfo, type TimeZoneDisplayInfo } from './TimeZonePicker/timeZoneUtils';
 
 export interface Props {
   onChange: (timeZone?: TimeZone) => void;
@@ -42,6 +49,7 @@ export const TimeZonePicker = (props: Props) => {
   } = props;
   const groupedTimeZones = useTimeZones(includeInternal);
   const selected = useSelectedTimeZone(groupedTimeZones, value);
+  const filterBySearchIndex = useFilterBySearchIndex();
   const TimeZoneOption = width && width <= 45 ? CompactTimeZoneOption : WideTimeZoneOption;
 
   const onChangeTz = useCallback(
@@ -58,7 +66,7 @@ export const TimeZonePicker = (props: Props) => {
     <Select
       inputId={inputId}
       value={selected}
-      placeholder={t('time-picker.zone.select-search-input', 'Type to search (city, abbreviation)')}
+      placeholder={t('time-picker.zone.select-search-input', 'Type to search (country, city, abbreviation)')}
       autoFocus={autoFocus}
       menuShouldPortal={menuShouldPortal}
       openMenuOnFocus={openMenuOnFocus}
@@ -79,71 +87,33 @@ interface SelectableZoneGroup extends SelectableValue<string> {
 }
 
 const useTimeZones = (includeInternal: boolean | InternalTimeZones[]): SelectableZoneGroup[] => {
-  const [now] = useState(Date.now);
+  const now = Date.now();
+
   const timeZoneGroups = useMemo(() => {
-    const groups = new Map<string, SelectableZone[]>();
+    return getTimeZoneGroups(includeInternal).map((group: GroupedTimeZones) => {
+      const options = group.zones.reduce((options: SelectableZone[], zone) => {
+        const info = getTimeZoneInfo(zone, now);
 
-    const pushOption = (group: string, zone: TimeZone, info: TimeZoneDisplayInfo, legacyName?: string) => {
-      const label = getTimeZoneTitle(info);
-      const options = groups.get(group) ?? [];
+        if (!info) {
+          return options;
+        }
 
-      // Filtering matches against the zone id, abbreviation, city label, and
-      // the legacy spelling (e.g. Asia/Kolkata is also searchable as
-      // "calcutta"). Country search is no longer supported.
-      const searchIndex = [zone, info.abbreviation, label !== zone ? label : '', legacyName]
-        .filter(Boolean)
-        .join('|')
-        .toLowerCase();
+        const name = getTimeZoneTitle(info);
 
-      options.push({ label, value: zone, info, searchIndex });
-      groups.set(group, options);
-    };
+        options.push({
+          label: name,
+          value: info.zone,
+          searchIndex: getSearchIndex(name, info, now),
+        });
 
-    // Internal zones (Default, Browser, UTC) go into a leading, label-less
-    // group so they render at the top of the menu.
-    const internalZones: TimeZone[] = Array.isArray(includeInternal)
-      ? includeInternal
-      : includeInternal
-        ? [InternalTimeZones.default, InternalTimeZones.localBrowserTime, InternalTimeZones.utc]
-        : [];
+        return options;
+      }, []);
 
-    for (const zone of internalZones) {
-      const info = getTimeZoneDisplayInfo(zone, now);
-
-      if (info) {
-        pushOption('', zone, info);
-      }
-    }
-
-    const zones = getTimeZonesAt(now);
-
-    // Legacy spelling entries are skipped as options below, but make the
-    // canonical option searchable under the legacy name too (e.g.
-    // Asia/Kolkata is also searchable as "calcutta").
-    const legacyNames = new Map<string, string>();
-
-    for (const tz of zones) {
-      if (tz.aliasOf !== undefined) {
-        legacyNames.set(tz.aliasOf, tz.name);
-      }
-    }
-
-    for (const tz of zones) {
-      if (tz.aliasOf !== undefined) {
-        continue;
-      }
-
-      const delimiter = tz.name.indexOf('/');
-      const group = delimiter === -1 ? '' : tz.name.slice(0, delimiter);
-      pushOption(
-        group,
-        tz.name,
-        { name: tz.name, abbreviation: tz.abbr, offset: tz.offsetDisplay },
-        legacyNames.get(tz.name)
-      );
-    }
-
-    return Array.from(groups, ([label, options]) => ({ label, options }));
+      return {
+        label: group.name,
+        options,
+      };
+    });
   }, [includeInternal, now]);
 
   return timeZoneGroups;
@@ -158,26 +128,60 @@ const useSelectedTimeZone = (
       return undefined;
     }
 
-    // Options are keyed by canonical IANA ids, but the incoming value may use
-    // a legacy spelling (e.g. Asia/Calcutta persisted by an older Grafana or
-    // returned by Chrome's Intl).
-    const tz = canonicalZoneName(timeZone).toLowerCase();
+    const tz = timeZone?.toLowerCase() ?? '';
 
-    for (const group of groups) {
-      const option = group.options.find((option) => option.value?.toLowerCase() === tz);
-
-      if (option) {
-        return option;
+    const group = groups.find((group) => {
+      if (!group.label) {
+        return isInternal(tz);
       }
-    }
+      return tz.startsWith(group.label.toLowerCase());
+    });
 
-    return undefined;
+    return group?.options.find((option) => {
+      if (tz === '') {
+        return option.value === InternalTimeZones.default;
+      }
+      return option.value?.toLowerCase() === tz;
+    });
   }, [groups, timeZone]);
 };
 
-const filterBySearchIndex = (option: SelectableValue, searchQuery: string) => {
-  if (!searchQuery || !option.data || !option.data.searchIndex) {
-    return true;
+const isInternal = (timeZone: TimeZone): boolean => {
+  switch (timeZone) {
+    case InternalTimeZones.default:
+    case InternalTimeZones.localBrowserTime:
+    case InternalTimeZones.utc:
+      return true;
+
+    default:
+      return false;
   }
-  return option.data.searchIndex.indexOf(searchQuery.toLowerCase()) > -1;
+};
+
+const useFilterBySearchIndex = () => {
+  return useCallback((option: SelectableValue, searchQuery: string) => {
+    if (!searchQuery || !option.data || !option.data.searchIndex) {
+      return true;
+    }
+    return option.data.searchIndex.indexOf(searchQuery.toLowerCase()) > -1;
+  }, []);
+};
+
+const getSearchIndex = (label: string, info: TimeZoneInfo, timestamp: number): string => {
+  const parts: string[] = [
+    info.zone.toLowerCase(),
+    info.abbreviation.toLowerCase(),
+    formatUtcOffset(timestamp, info.zone).toLowerCase(),
+  ];
+
+  if (label !== info.zone) {
+    parts.push(label.toLowerCase());
+  }
+
+  for (const country of info.countries) {
+    parts.push(country.name.toLowerCase());
+    parts.push(country.code.toLowerCase());
+  }
+
+  return parts.join('|');
 };

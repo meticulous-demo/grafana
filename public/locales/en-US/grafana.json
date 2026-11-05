@@ -17455,7 +17455,7 @@
     },
     "zone": {
       "select-aria-label": "Time zone picker",
-      "select-search-input": "Type to search (city, abbreviation)"
+      "select-search-input": "Type to search (country, city, abbreviation)"
     }
   },
   "timeline": {

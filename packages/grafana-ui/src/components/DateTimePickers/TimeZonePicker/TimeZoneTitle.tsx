@@ -1,11 +1,9 @@
 import { css } from '@emotion/css';
 import { type ReactNode } from 'react';
 
-import { type GrafanaTheme2 } from '@grafana/data';
+import { type TimeZoneInfo, type GrafanaTheme2 } from '@grafana/data';
 
 import { useStyles2 } from '../../../themes/ThemeContext';
-
-import { type TimeZoneDisplayInfo } from './timeZoneUtils';
 
 interface Props {
   title: string | ReactNode;
@@ -21,7 +19,7 @@ export const TimeZoneTitle = ({ title }: Props) => {
   return <span className={styles.title}>{title}</span>;
 };
 
-export const getTimeZoneTitle = (info: Pick<TimeZoneDisplayInfo, 'name'>): string => {
+export const getTimeZoneTitle = (info: TimeZoneInfo): string => {
   return info.name.split('/').at(-1)!.replace(/_/g, ' ');
 };
 

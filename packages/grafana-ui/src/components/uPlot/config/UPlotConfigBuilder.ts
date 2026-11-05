@@ -13,6 +13,7 @@ import {
   type DataFrame,
   DefaultTimeZone,
   type Field,
+  getTimeZoneInfo,
   type GrafanaTheme2,
   type TimeRange,
   type TimeZone,
@@ -20,7 +21,6 @@ import {
 import { findTimeZoneAt } from '@grafana/data/unstable';
 import { AxisPlacement, type VizOrientation } from '@grafana/schema';
 
-import { resolveIanaName } from '../../DateTimePickers/TimeZonePicker/timeZoneUtils';
 import { type FacetedData, type PlotConfig } from '../types';
 import { DEFAULT_PLOT_CONFIG, getStackingBands, pluginLog, type StackingGroup } from '../utils';
 
@@ -73,10 +73,7 @@ export class UPlotConfigBuilder {
   prepData: PrepData | undefined = undefined;
 
   constructor(timeZone: TimeZone = DefaultTimeZone) {
-    const resolved = resolveIanaName(timeZone);
-    // Unknown zones stay undefined so tzDate falls back to browser-local
-    // dates; UTC is always valid but may be missing from the runtime's list.
-    this.tz = findTimeZoneAt(resolved, Date.now())?.name ?? (resolved === 'UTC' ? 'UTC' : undefined);
+    this.tz = getTimeZoneInfo(timeZone, Date.now())?.ianaName;
   }
 
   // Exposed to let the container know the primary scale keys
