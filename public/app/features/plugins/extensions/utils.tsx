@@ -16,6 +16,7 @@ import {
   type PluginMeta,
   urlUtil,
 } from '@grafana/data';
+import { selectors } from '@grafana/e2e-selectors';
 import { getPluginSettings, reportInteraction } from '@grafana/runtime';
 import { FlagKeys, getAppPluginMetas, getFeatureFlagClient } from '@grafana/runtime/internal';
 import { Modal } from '@grafana/ui';
@@ -94,9 +95,15 @@ export const wrapWithPluginContext = <T,>({
     <PluginContextProvider meta={meta}>
       <ExtensionErrorBoundary pluginId={pluginId} extensionTitle={extensionTitle} log={log}>
         <RestrictedGrafanaApisProvider pluginId={pluginId}>
-          <Component
-            {...writableProxy(props, { log, source: 'extension', pluginId, pluginVersion: meta.info?.version })}
-          />
+          <div
+            data-testid={selectors.components.Plugins.extensionComponent(pluginId)}
+            data-plugin-id={pluginId}
+            style={{ display: 'contents' }}
+          >
+            <Component
+              {...writableProxy(props, { log, source: 'extension', pluginId, pluginVersion: meta.info?.version })}
+            />
+          </div>
         </RestrictedGrafanaApisProvider>
       </ExtensionErrorBoundary>
     </PluginContextProvider>
