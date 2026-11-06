@@ -26,6 +26,7 @@ import { type DashboardScene } from './DashboardScene';
 import { PanelSearchLayout } from './PanelSearchLayout';
 import { PlanBuildingOverlay } from './PlanBuildingOverlay';
 import { PlanningControls } from './new-toolbar/PlanningControls';
+import { SandboxConsentBanner } from './sandbox-consent/SandboxConsentBanner';
 
 export function DashboardSceneRenderer({ model }: SceneComponentProps<DashboardScene>) {
   const {
@@ -173,6 +174,7 @@ export function DashboardSceneRenderer({ model }: SceneComponentProps<DashboardS
       {layoutOrchestrator && <layoutOrchestrator.Component model={layoutOrchestrator} />}
       <Page navModel={navModel} pageNav={pageNav} layout={PageLayoutType.Custom}>
         {editPanel && <editPanel.Component model={editPanel} />}
+        {!editPanel && <SandboxConsentBanner dashboardUid={uid} />}
         {!editPanel && (
           <DashboardSidebarSplitter
             dashboard={model}
