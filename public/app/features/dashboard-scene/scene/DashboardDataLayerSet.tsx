@@ -14,7 +14,7 @@ import { DataLayerControl } from './DataLayerControl';
 import { isRowItem, isTabItem } from './types/LayoutItemTypeGuards';
 
 export const NEW_ANNOTATION_NAME = 'New annotation';
-export const NEW_ANNOTATION_COLOR = 'red';
+const NEW_ANNOTATION_COLOR = 'red';
 
 export interface DashboardDataLayerSetState extends SceneDataLayerProviderState {
   alertStatesLayer?: AlertStatesDataLayer;
