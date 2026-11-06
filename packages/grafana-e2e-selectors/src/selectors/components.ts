@@ -1551,23 +1551,9 @@ export const versionedComponents = {
     configPage: {
       '13.2.0': (pluginId: string, pageId: string) => `data-testid Plugin config page ${pluginId} ${pageId}`,
     },
-  Plugins: {
-    appPage: {
-      '13.2.0': (pluginId: string) => `data-testid App plugin page ${pluginId}`,
-    },
-    dataSourceConfigEditor: {
-      '13.2.0': (pluginId: string) => `data-testid Data source config editor ${pluginId}`,
-    },
-    configPage: {
-      '13.2.0': (pluginId: string, pageId: string) => `data-testid Plugin config page ${pluginId} ${pageId}`,
-    },
     extensionComponent: {
       '13.2.0': (pluginId: string) => `data-testid Plugin extension component ${pluginId}`,
     },
-    queryEditorRow: {
-      '13.2.0': (dataSourceType: string, refId: string) => `data-testid Query editor row ${dataSourceType} ${refId}`,
-    },
-  },
     queryEditorRow: {
       '13.2.0': (dataSourceType: string, refId: string) => `data-testid Query editor row ${dataSourceType} ${refId}`,
     },
