@@ -30,7 +30,9 @@ const mockVariable = mockDataSource({
 });
 
 const dsSrvMock: Pick<DataSourceSrv, 'get' | 'getList' | 'getInstanceSettings'> = {
-  get: jest.fn(async () => ({ getDefaultQuery: undefined }) as unknown as DataSourceApi),
+  get: jest.fn(
+    async () => ({ getDefaultQuery: undefined, type: DataSourceType.Alertmanager }) as unknown as DataSourceApi
+  ),
   getList: jest.fn((filters?: GetDataSourceListFilters) => (filters?.variables ? [mockDS, mockVariable] : [mockDS])),
   getInstanceSettings: jest.fn(() => mockDS),
 };
@@ -372,6 +374,18 @@ describe('QueryEditorRows', () => {
     );
 
     expect(await screen.findAllByTestId(selectors.components.QueryEditorRows.rows)).toHaveLength(1);
+  });
+
+  it('Should mark each query row with the datasource plugin boundary', async () => {
+    renderScenario();
+
+    const rowA = await screen.findByTestId(
+      selectors.components.Plugins.queryEditorRow(DataSourceType.Alertmanager, 'A')
+    );
+    expect(rowA).toHaveAttribute('data-plugin-id', DataSourceType.Alertmanager);
+    expect(
+      await screen.findByTestId(selectors.components.Plugins.queryEditorRow(DataSourceType.Alertmanager, 'B'))
+    ).toBeInTheDocument();
   });
 
   it('Should be able to expand and collapse queries', async () => {
