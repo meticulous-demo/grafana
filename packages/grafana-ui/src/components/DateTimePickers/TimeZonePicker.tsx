@@ -1,22 +1,15 @@
 import { useMemo, useCallback } from 'react';
 
-import {
-  type SelectableValue,
-  getTimeZoneInfo,
-  type TimeZoneInfo,
-  getTimeZoneGroups,
-  type GroupedTimeZones,
-  type TimeZone,
-  InternalTimeZones,
-} from '@grafana/data';
+import { type SelectableValue, type TimeZoneInfo, type TimeZone, InternalTimeZones } from '@grafana/data';
 import { t } from '@grafana/i18n';
 
 import { Select } from '../Select/Select';
 
 import { TimeZoneGroup } from './TimeZonePicker/TimeZoneGroup';
-import { formatUtcOffset } from './TimeZonePicker/TimeZoneOffset';
 import { CompactTimeZoneOption, WideTimeZoneOption, type SelectableZone } from './TimeZonePicker/TimeZoneOption';
 import { getTimeZoneTitle } from './TimeZonePicker/TimeZoneTitle';
+import { getTimeZonesAt, type TimeZoneInfo as EasyTzInfo } from './TimeZonePicker/easytz';
+import { findTimeZoneAt, offsetToMinutes, resolveIanaName } from './TimeZonePicker/timeZoneUtils';
 
 export interface Props {
   onChange: (timeZone?: TimeZone) => void;
@@ -66,7 +59,7 @@ export const TimeZonePicker = (props: Props) => {
     <Select
       inputId={inputId}
       value={selected}
-      placeholder={t('time-picker.zone.select-search-input', 'Type to search (country, city, abbreviation)')}
+      placeholder={t('time-picker.zone.select-search-input', 'Type to search (city, abbreviation)')}
       autoFocus={autoFocus}
       menuShouldPortal={menuShouldPortal}
       openMenuOnFocus={openMenuOnFocus}
@@ -87,34 +80,46 @@ interface SelectableZoneGroup extends SelectableValue<string> {
 }
 
 const useTimeZones = (includeInternal: boolean | InternalTimeZones[]): SelectableZoneGroup[] => {
-  const now = Date.now();
-
   const timeZoneGroups = useMemo(() => {
-    return getTimeZoneGroups(includeInternal).map((group: GroupedTimeZones) => {
-      const options = group.zones.reduce((options: SelectableZone[], zone) => {
-        const info = getTimeZoneInfo(zone, now);
+    const now = Date.now();
+    const groups = new Map<string, SelectableZone[]>();
 
-        if (!info) {
-          return options;
-        }
+    const pushOption = (group: string, info: TimeZoneInfo, aliasOf?: string) => {
+      const name = getTimeZoneTitle(info);
+      const options = groups.get(group) ?? [];
 
-        const name = getTimeZoneTitle(info);
+      options.push({
+        label: name,
+        value: info.zone,
+        info,
+        searchIndex: getSearchIndex(name, info, aliasOf),
+      });
 
-        options.push({
-          label: name,
-          value: info.zone,
-          searchIndex: getSearchIndex(name, info, now),
-        });
+      groups.set(group, options);
+    };
 
-        return options;
-      }, []);
+    // Internal zones (Default, Browser, UTC) go into a leading, label-less
+    // group so they render at the top of the menu.
+    const internalZones: TimeZone[] = [];
 
-      return {
-        label: group.name,
-        options,
-      };
-    });
-  }, [includeInternal, now]);
+    if (includeInternal === true) {
+      internalZones.push(InternalTimeZones.default, InternalTimeZones.localBrowserTime, InternalTimeZones.utc);
+    } else if (Array.isArray(includeInternal)) {
+      internalZones.push(...includeInternal);
+    }
+
+    for (const zone of internalZones) {
+      pushOption('', getInternalTimeZoneInfo(zone, now));
+    }
+
+    for (const tz of getTimeZonesAt(now)) {
+      const delimiter = tz.name.indexOf('/');
+      const group = delimiter === -1 ? '' : tz.name.slice(0, delimiter);
+      pushOption(group, toTimeZoneInfo(tz), tz.aliasOf);
+    }
+
+    return Array.from(groups, ([label, options]) => ({ label, options }));
+  }, [includeInternal]);
 
   return timeZoneGroups;
 };
@@ -167,21 +172,58 @@ const useFilterBySearchIndex = () => {
   }, []);
 };
 
-const getSearchIndex = (label: string, info: TimeZoneInfo, timestamp: number): string => {
-  const parts: string[] = [
-    info.zone.toLowerCase(),
-    info.abbreviation.toLowerCase(),
-    formatUtcOffset(timestamp, info.zone).toLowerCase(),
-  ];
+const getSearchIndex = (label: string, info: TimeZoneInfo, aliasOf?: string): string => {
+  const parts: string[] = [info.zone.toLowerCase(), info.abbreviation.toLowerCase()];
 
   if (label !== info.zone) {
     parts.push(label.toLowerCase());
   }
 
-  for (const country of info.countries) {
-    parts.push(country.name.toLowerCase());
-    parts.push(country.code.toLowerCase());
+  // Make the zone findable under its alternate spelling too
+  // (e.g. Asia/Calcutta is also searchable as "kolkata").
+  if (aliasOf) {
+    parts.push(aliasOf.toLowerCase());
   }
 
   return parts.join('|');
+};
+
+/**
+ * Maps an easy-tz catalog entry to Grafana's TimeZoneInfo shape. Country data
+ * is intentionally omitted; the picker no longer supports searching by country.
+ */
+const toTimeZoneInfo = (tz: EasyTzInfo): TimeZoneInfo => ({
+  name: tz.name,
+  ianaName: tz.name,
+  zone: tz.name,
+  countries: [],
+  abbreviation: tz.abbr,
+  offsetInMins: offsetToMinutes(tz.offset),
+});
+
+/** Builds display info for Grafana's internal zones (Default, Browser, UTC). */
+const getInternalTimeZoneInfo = (zone: TimeZone, timestamp: number): TimeZoneInfo => {
+  if (zone === InternalTimeZones.utc) {
+    return {
+      name: 'Coordinated Universal Time',
+      ianaName: 'UTC',
+      zone,
+      countries: [],
+      abbreviation: 'UTC, GMT',
+      offsetInMins: 0,
+    };
+  }
+
+  const name = zone === InternalTimeZones.localBrowserTime ? 'Browser Time' : 'Default';
+  const ianaName = resolveIanaName(zone);
+  const tz = findTimeZoneAt(ianaName, timestamp);
+
+  return {
+    name,
+    ianaName,
+    zone,
+    countries: [],
+    abbreviation: tz?.abbr ?? '',
+    offsetInMins: tz ? offsetToMinutes(tz.offset) : 0,
+  };
 };
