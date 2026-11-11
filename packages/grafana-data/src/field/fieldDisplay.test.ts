@@ -87,6 +87,35 @@ describe('FieldDisplay', () => {
     expect(display.map((v) => v.display.numeric)).toEqual([1, 3]); // First 2 are from the first field
   });
 
+  it('caps values at the default limit when no limit is set', () => {
+    const options = createDisplayOptions({
+      reduceOptions: {
+        values: true,
+        calcs: [],
+      },
+      data: [
+        toDataFrame({
+          fields: [{ name: 'Value', type: FieldType.number, values: Array.from({ length: 15 }, (_, i) => i) }],
+        }),
+      ],
+    });
+    expect(getFieldDisplayValues(options)).toHaveLength(10);
+  });
+
+  it('caps calculated values at the default limit when no limit is set', () => {
+    const options = createDisplayOptions({
+      reduceOptions: {
+        calcs: [ReducerID.last],
+      },
+      data: [
+        toDataFrame({
+          fields: Array.from({ length: 15 }, (_, i) => ({ name: `Series ${i}`, type: FieldType.number, values: [i] })),
+        }),
+      ],
+    });
+    expect(getFieldDisplayValues(options)).toHaveLength(10);
+  });
+
   it('should not calculate min max automatically', () => {
     const options = createDisplayOptions({
       reduceOptions: {
