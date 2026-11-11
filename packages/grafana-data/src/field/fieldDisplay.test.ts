@@ -512,6 +512,40 @@ describe('FieldDisplay', () => {
     });
   });
 
+  describe('percent change', () => {
+    it('should compare the latest value with the previous non-null value', () => {
+      const options = createDisplayOptions({
+        percentChange: true,
+        reduceOptions: { calcs: [ReducerID.lastNotNull] },
+        data: [
+          toDataFrame({
+            fields: [
+              { name: 'Time', type: FieldType.time, values: [1, 2, 3, 4] },
+              { name: 'Value', type: FieldType.number, values: [10, 40, null, 50] },
+            ],
+          }),
+        ],
+      });
+
+      const result = getFieldDisplayValues(options);
+      expect(result[0].display.percentChange).toBe(25);
+    });
+
+    it('should return 0 when there is no previous value', () => {
+      const options = createDisplayOptions({
+        percentChange: true,
+        reduceOptions: { calcs: [ReducerID.lastNotNull] },
+        data: [
+          toDataFrame({
+            fields: [{ name: 'Value', type: FieldType.number, values: [null, 50] }],
+          }),
+        ],
+      });
+
+      expect(getFieldDisplayValues(options)[0].display.percentChange).toBe(0);
+    });
+  });
+
   describe('sparkline', () => {
     it('should return sparkline when data has a time field', () => {
       const options = createDisplayOptions({

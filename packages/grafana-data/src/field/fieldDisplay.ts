@@ -143,6 +143,22 @@ export function getSparklineHighlight(
   }
 }
 
+function getPercentChangeFromPrevious(field: Field): number {
+  let latest: number | undefined;
+  for (let k = field.values.length - 1; k >= 0; k--) {
+    const v = field.values[k];
+    if (typeof v !== 'number' || Number.isNaN(v)) {
+      continue;
+    }
+    if (latest === undefined) {
+      latest = v;
+    } else {
+      return v === 0 ? 0 : ((latest - v) / v) * 100;
+    }
+  }
+  return 0;
+}
+
 export const getFieldDisplayValues = (options: GetFieldDisplayValuesOptions): FieldDisplay[] => {
   const { replaceVariables, reduceOptions, timeZone, theme } = options;
   const calcs = reduceOptions.calcs.length ? reduceOptions.calcs : [ReducerID.last];
@@ -251,9 +267,7 @@ export const getFieldDisplayValues = (options: GetFieldDisplayValuesOptions): Fi
           } else {
             displayValue.title = getFieldDisplayName(field, dataFrame, data);
           }
-          displayValue.percentChange = options.percentChange
-            ? reduceField({ field: field, reducers: [ReducerID.diffperc] }).diffperc
-            : undefined;
+          displayValue.percentChange = options.percentChange ? getPercentChangeFromPrevious(field) : undefined;
 
           let sparkline: FieldSparkline | undefined = undefined;
           if (options.sparkline && timeField) {
