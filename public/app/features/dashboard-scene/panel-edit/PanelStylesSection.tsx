@@ -31,6 +31,10 @@ export function PanelStylesSection({ panel, onApplyPreset }: PanelStylesSectionP
 
   const handlePresetApply = useCallback(
     (preset: PanelPluginVisualizationSuggestion, index: number) => {
+      if (selectedPreset !== preset.hash) {
+        setSelectedPreset(preset.hash);
+        return;
+      }
       VizSuggestionsInteractions.presetApplied({
         pluginId: preset.pluginId,
         presetName: preset.name,
@@ -41,7 +45,7 @@ export function PanelStylesSection({ panel, onApplyPreset }: PanelStylesSectionP
         onApplyPreset(preset, panel.state.fieldConfig);
       }
     },
-    [onApplyPreset, panel]
+    [onApplyPreset, panel, selectedPreset]
   );
 
   const getThresholdBadge = (preset: PanelPluginVisualizationSuggestion) => {
