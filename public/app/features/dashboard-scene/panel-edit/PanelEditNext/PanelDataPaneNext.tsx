@@ -620,7 +620,6 @@ export class PanelDataPaneNext extends SceneObjectBase<PanelDataPaneNextState> {
     const transformation = transformations[index];
     transformations[index] = { ...transformation, disabled: !transformation.disabled };
     transformer.setState({ transformations });
-    this.runQueries();
   };
 
   public bulkDeleteTransformations = (indices: number[]) => {
