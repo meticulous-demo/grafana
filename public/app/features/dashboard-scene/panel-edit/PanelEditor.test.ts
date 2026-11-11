@@ -650,6 +650,21 @@ describe('PanelEditor', () => {
     });
   });
 
+  describe('When switching visualization', () => {
+    it('should keep table view enabled', async () => {
+      const { panelEditor, panel } = await setup({ pluginId: 'timeseries', pluginSkipDataQuery: false });
+
+      act(() => panelEditor.onToggleTableView());
+      expect(panelEditor.state.tableView).toBeDefined();
+
+      pluginPromise = Promise.resolve(getPanelPlugin({ id: 'table' }, () => createElement('div')));
+      await act(() => panel.changePluginType('table'));
+
+      expect(panel.getPlugin()?.meta.id).toBe('table');
+      expect(panelEditor.state.tableView).toBeDefined();
+    });
+  });
+
   describe('Query editor version toggle', () => {
     describe('when queryEditorNext feature toggle is enabled', () => {
       beforeEach(() => {
