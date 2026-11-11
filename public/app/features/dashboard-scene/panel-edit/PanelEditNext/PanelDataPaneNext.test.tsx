@@ -472,6 +472,12 @@ describe('PanelDataPaneNext', () => {
         });
       });
 
+      it('should not re-run queries when toggling a transformation', () => {
+        dataPane.toggleTransformationDisabled(1);
+
+        expect(mockQueryRunner.runQueries).not.toHaveBeenCalled();
+      });
+
       it('should not toggle if the index is out of bounds', () => {
         dataPane.toggleTransformationDisabled(-1);
         expect(mockTransformer.setState).not.toHaveBeenCalled();
