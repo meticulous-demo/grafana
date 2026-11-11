@@ -511,6 +511,60 @@ describe('FieldDisplay', () => {
       expect(result[0].display.title).toEqual('NewName');
     });
   });
+
+  describe('default calculation', () => {
+    it('should use the last non-null value when no calculation is selected', () => {
+      const options = createDisplayOptions({
+        data: [
+          toDataFrame({
+            fields: [
+              { name: 'Time', type: FieldType.time, values: [1, 2, 3] },
+              { name: 'Value', type: FieldType.number, values: [10, 20, null] },
+            ],
+          }),
+        ],
+      });
+
+      const result = getFieldDisplayValues(options);
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe(ReducerID.lastNotNull);
+      expect(result[0].display.numeric).toBe(20);
+    });
+  });
+
+  describe('sparkline', () => {
+    it('should return sparkline when data has a time field', () => {
+      const options = createDisplayOptions({
+        sparkline: true,
+        reduceOptions: { calcs: [ReducerID.last] },
+        data: [
+          toDataFrame({
+            fields: [
+              { name: 'Time', type: FieldType.time, values: [1, 2, 3] },
+              { name: 'Value', type: FieldType.number, values: [10, 20, 30] },
+            ],
+          }),
+        ],
+      });
+
+      const result = getFieldDisplayValues(options);
+      expect(result).toHaveLength(1);
+      expect(result[0].sparkline?.x?.name).toBe('Time');
+      expect(result[0].sparkline?.y.name).toBe('Value');
+      expect(result[0].sparkline?.highlightIndex).toBe(2);
+    });
+
+    it('should not return sparkline when data has no time field', () => {
+      const options = createDisplayOptions({
+        sparkline: true,
+        reduceOptions: { calcs: [ReducerID.last] },
+      });
+
+      const result = getFieldDisplayValues(options);
+      expect(result).toHaveLength(2);
+      expect(result.map((v) => v.sparkline)).toEqual([undefined, undefined]);
+    });
+  });
 });
 
 function createEmptyDisplayOptions(extend = {}): GetFieldDisplayValuesOptions {
