@@ -511,6 +511,74 @@ describe('FieldDisplay', () => {
       expect(result[0].display.title).toEqual('NewName');
     });
   });
+
+  describe('percent change', () => {
+    it('should compare the latest value with the previous non-null value', () => {
+      const options = createDisplayOptions({
+        percentChange: true,
+        reduceOptions: { calcs: [ReducerID.lastNotNull] },
+        data: [
+          toDataFrame({
+            fields: [
+              { name: 'Time', type: FieldType.time, values: [1, 2, 3, 4] },
+              { name: 'Value', type: FieldType.number, values: [10, 40, null, 50] },
+            ],
+          }),
+        ],
+      });
+
+      const result = getFieldDisplayValues(options);
+      expect(result[0].display.percentChange).toBe(25);
+    });
+
+    it('should return 0 when there is no previous value', () => {
+      const options = createDisplayOptions({
+        percentChange: true,
+        reduceOptions: { calcs: [ReducerID.lastNotNull] },
+        data: [
+          toDataFrame({
+            fields: [{ name: 'Value', type: FieldType.number, values: [null, 50] }],
+          }),
+        ],
+      });
+
+      expect(getFieldDisplayValues(options)[0].display.percentChange).toBe(0);
+    });
+  });
+
+  describe('sparkline', () => {
+    it('should return sparkline when data has a time field', () => {
+      const options = createDisplayOptions({
+        sparkline: true,
+        reduceOptions: { calcs: [ReducerID.last] },
+        data: [
+          toDataFrame({
+            fields: [
+              { name: 'Time', type: FieldType.time, values: [1, 2, 3] },
+              { name: 'Value', type: FieldType.number, values: [10, 20, 30] },
+            ],
+          }),
+        ],
+      });
+
+      const result = getFieldDisplayValues(options);
+      expect(result).toHaveLength(1);
+      expect(result[0].sparkline?.x?.name).toBe('Time');
+      expect(result[0].sparkline?.y.name).toBe('Value');
+      expect(result[0].sparkline?.highlightIndex).toBe(2);
+    });
+
+    it('should not return sparkline when data has no time field', () => {
+      const options = createDisplayOptions({
+        sparkline: true,
+        reduceOptions: { calcs: [ReducerID.last] },
+      });
+
+      const result = getFieldDisplayValues(options);
+      expect(result).toHaveLength(2);
+      expect(result.map((v) => v.sparkline)).toEqual([undefined, undefined]);
+    });
+  });
 });
 
 function createEmptyDisplayOptions(extend = {}): GetFieldDisplayValuesOptions {
