@@ -87,6 +87,35 @@ describe('FieldDisplay', () => {
     expect(display.map((v) => v.display.numeric)).toEqual([1, 3]); // First 2 are from the first field
   });
 
+  it('caps values at the default limit when no limit is set', () => {
+    const options = createDisplayOptions({
+      reduceOptions: {
+        values: true,
+        calcs: [],
+      },
+      data: [
+        toDataFrame({
+          fields: [{ name: 'Value', type: FieldType.number, values: Array.from({ length: 15 }, (_, i) => i) }],
+        }),
+      ],
+    });
+    expect(getFieldDisplayValues(options)).toHaveLength(10);
+  });
+
+  it('caps calculated values at the default limit when no limit is set', () => {
+    const options = createDisplayOptions({
+      reduceOptions: {
+        calcs: [ReducerID.last],
+      },
+      data: [
+        toDataFrame({
+          fields: Array.from({ length: 15 }, (_, i) => ({ name: `Series ${i}`, type: FieldType.number, values: [i] })),
+        }),
+      ],
+    });
+    expect(getFieldDisplayValues(options)).toHaveLength(10);
+  });
+
   it('should not calculate min max automatically', () => {
     const options = createDisplayOptions({
       reduceOptions: {
@@ -509,6 +538,40 @@ describe('FieldDisplay', () => {
 
       const result = getFieldDisplayValues(options);
       expect(result[0].display.title).toEqual('NewName');
+    });
+  });
+
+  describe('sparkline', () => {
+    it('should return sparkline when data has a time field', () => {
+      const options = createDisplayOptions({
+        sparkline: true,
+        reduceOptions: { calcs: [ReducerID.last] },
+        data: [
+          toDataFrame({
+            fields: [
+              { name: 'Time', type: FieldType.time, values: [1, 2, 3] },
+              { name: 'Value', type: FieldType.number, values: [10, 20, 30] },
+            ],
+          }),
+        ],
+      });
+
+      const result = getFieldDisplayValues(options);
+      expect(result).toHaveLength(1);
+      expect(result[0].sparkline?.x?.name).toBe('Time');
+      expect(result[0].sparkline?.y.name).toBe('Value');
+      expect(result[0].sparkline?.highlightIndex).toBe(2);
+    });
+
+    it('should not return sparkline when data has no time field', () => {
+      const options = createDisplayOptions({
+        sparkline: true,
+        reduceOptions: { calcs: [ReducerID.last] },
+      });
+
+      const result = getFieldDisplayValues(options);
+      expect(result).toHaveLength(2);
+      expect(result.map((v) => v.sparkline)).toEqual([undefined, undefined]);
     });
   });
 });

@@ -71,7 +71,7 @@ export interface GetFieldDisplayValuesOptions {
   timeZone?: TimeZone;
 }
 
-export const DEFAULT_FIELD_DISPLAY_VALUES_LIMIT = 25;
+export const DEFAULT_FIELD_DISPLAY_VALUES_LIMIT = 10;
 
 interface SparklineHighlightPoint {
   type: 'point';
@@ -256,7 +256,7 @@ export const getFieldDisplayValues = (options: GetFieldDisplayValuesOptions): Fi
             : undefined;
 
           let sparkline: FieldSparkline | undefined = undefined;
-          if (options.sparkline) {
+          if (options.sparkline && timeField) {
             sparkline = {
               y: dataFrame.fields[i],
               x: timeField,
@@ -309,6 +309,11 @@ export const getFieldDisplayValues = (options: GetFieldDisplayValuesOptions): Fi
               : () => [],
             hasLinks: hasLinks(field),
           });
+
+          if (values.length >= limit) {
+            hitLimit = true;
+            break;
+          }
         }
       }
     }
