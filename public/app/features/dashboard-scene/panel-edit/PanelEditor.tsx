@@ -297,11 +297,6 @@ export class PanelEditor extends SceneObjectBase<PanelEditorState> {
       // Just update data pane
       this._updateDataPane(plugin);
     }
-
-    // If switching plugin when tableView is enabled, then disable it
-    if (this.state.tableView) {
-      this.setState({ tableView: undefined });
-    }
   }
 
   private _updateDataPane(plugin: PanelPlugin) {
