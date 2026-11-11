@@ -145,7 +145,7 @@ export function getSparklineHighlight(
 
 export const getFieldDisplayValues = (options: GetFieldDisplayValuesOptions): FieldDisplay[] => {
   const { replaceVariables, reduceOptions, timeZone, theme } = options;
-  const calcs = reduceOptions.calcs.length ? reduceOptions.calcs : [ReducerID.last];
+  const calcs = reduceOptions.calcs.length ? reduceOptions.calcs : [ReducerID.lastNotNull];
 
   const values: FieldDisplay[] = [];
   const fieldMatcher = getFieldMatcher(

@@ -512,6 +512,26 @@ describe('FieldDisplay', () => {
     });
   });
 
+  describe('default calculation', () => {
+    it('should use the last non-null value when no calculation is selected', () => {
+      const options = createDisplayOptions({
+        data: [
+          toDataFrame({
+            fields: [
+              { name: 'Time', type: FieldType.time, values: [1, 2, 3] },
+              { name: 'Value', type: FieldType.number, values: [10, 20, null] },
+            ],
+          }),
+        ],
+      });
+
+      const result = getFieldDisplayValues(options);
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe(ReducerID.lastNotNull);
+      expect(result[0].display.numeric).toBe(20);
+    });
+  });
+
   describe('sparkline', () => {
     it('should return sparkline when data has a time field', () => {
       const options = createDisplayOptions({
