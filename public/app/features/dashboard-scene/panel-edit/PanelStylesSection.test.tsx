@@ -238,6 +238,7 @@ describe('PanelStylesSection', () => {
     await waitFor(() => expect(screen.getByTestId('preset-smooth-hash')).toBeInTheDocument());
 
     await user.click(screen.getByTestId('preset-smooth-hash'));
+    await user.click(screen.getByTestId('preset-smooth-hash'));
 
     expect(mockReportInteraction).toHaveBeenCalledWith('grafana_viz_preset_applied', {
       pluginId: 'timeseries',
@@ -251,6 +252,7 @@ describe('PanelStylesSection', () => {
     render(<PanelStylesSection panel={buildPanel()} onApplyPreset={onApplyPreset} />);
 
     await user.click(screen.getByTestId('preset-smooth-hash'));
+    await user.click(screen.getByTestId('preset-smooth-hash'));
 
     expect(onApplyPreset).toHaveBeenCalledWith(mockPresets[1], mockFieldConfig);
   });
@@ -262,8 +264,24 @@ describe('PanelStylesSection', () => {
     render(<PanelStylesSection panel={buildPanel()} onApplyPreset={onApplyPreset} />);
 
     await user.click(screen.getByTestId('preset-no-config-hash'));
+    await user.click(screen.getByTestId('preset-no-config-hash'));
 
     expect(onApplyPreset).not.toHaveBeenCalled();
+  });
+
+  it('does not apply a preset on the first click', async () => {
+    const user = userEvent.setup();
+    render(<PanelStylesSection panel={buildPanel()} onApplyPreset={onApplyPreset} />);
+    await waitFor(() => expect(screen.getByTestId('preset-smooth-hash')).toBeInTheDocument());
+
+    await user.click(screen.getByTestId('preset-smooth-hash'));
+
+    expect(onApplyPreset).not.toHaveBeenCalled();
+    expect(mockReportInteraction).not.toHaveBeenCalledWith(
+      'grafana_viz_preset_applied',
+      expect.anything()
+    );
+    expect(screen.getByTestId('preset-smooth-hash')).toHaveAttribute('data-selected', 'true');
   });
 
   it('marks the clicked card as selected', async () => {
