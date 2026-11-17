@@ -10,6 +10,11 @@ on:
   # so that Meticulous can run the workflow on the base commit to compare
   # against if an existing workflow hasn't run
   workflow_dispatch:
+    inputs:
+      upload-only:
+        description: Upload the built container image and print the deployment id instead of running a test run
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -208,7 +213,7 @@ jobs:
           echo "IMAGE_UNDER_TEST=$IMAGE" | tee -a "$GITHUB_OUTPUT"
 
       - name: Run Meticulous tests
-        if: env.METICULOUS_API_TOKEN != ''
+        if: env.METICULOUS_API_TOKEN != '' && !inputs.upload-only
         uses: alwaysmeticulous/report-diffs-action/upload-container@89c6081b30d17cfcc410b5c19c269cd7a4d67cdf # v1
         with:
           api-token: ${{ env.METICULOUS_API_TOKEN }}
@@ -217,3 +222,19 @@ jobs:
           container-env: |
             GF_AUTH_ANONYMOUS_ENABLED=true
             GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+
+      - name: Upload build to Meticulous
+        if: inputs.upload-only
+        env:
+          METICULOUS_API_TOKEN: ${{ env.METICULOUS_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          npx -y @alwaysmeticulous/cli@latest agent upload-build \
+            --apiToken "$METICULOUS_API_TOKEN" \
+            --localImageTag "${{ steps.load-image.outputs.IMAGE_UNDER_TEST }}" \
+            --containerPort 3000 \
+            --containerEnv "GF_AUTH_ANONYMOUS_ENABLED=true" \
+            --containerEnv "GF_AUTH_ANONYMOUS_ORG_ROLE=Admin" \
+            --commitSha "$GITHUB_SHA" \
+            --json | tee upload-result.json
+          cat upload-result.json >> "$GITHUB_STEP_SUMMARY"
