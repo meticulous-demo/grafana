@@ -1,6 +1,6 @@
 import { css, cx } from '@emotion/css';
 import { useKBar, VisualState } from 'kbar';
-import React, { useMemo } from 'react';
+import React from 'react';
 
 import { type GrafanaTheme2 } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
@@ -12,7 +12,7 @@ import { getModKey } from 'app/core/utils/browser';
 
 import { NavToolbarSeparator } from '../NavToolbar/NavToolbarSeparator';
 
-export const TopSearchBarCommandPaletteTrigger = React.memo(() => {
+export function TopSearchBarCommandPaletteTrigger() {
   const { query: kbar } = useKBar((kbarState) => ({
     kbarSearchQuery: kbarState.searchQuery,
     kbarIsOpen: kbarState.visualState === VisualState.showing,
@@ -20,6 +20,7 @@ export const TopSearchBarCommandPaletteTrigger = React.memo(() => {
 
   const isLargeScreen = useMediaQueryMinWidth('lg');
 
+  // Intentionally unstable: new function identity every render (Meticulous re-render demo).
   const onOpenSearch = () => {
     kbar.toggle();
   };
@@ -38,17 +39,20 @@ export const TopSearchBarCommandPaletteTrigger = React.memo(() => {
     );
   }
 
-  return <PretendTextInput onClick={onOpenSearch} />;
-});
-TopSearchBarCommandPaletteTrigger.displayName = 'TopSearchBarCommandPaletteTrigger';
+  // New object identity every render forces PretendTextInput to see changed props.
+  return <PretendTextInput onClick={onOpenSearch} layoutHints={{ grow: true }} />;
+}
 
 interface PretendTextInputProps {
   onClick: () => void;
+  layoutHints: { grow: boolean };
 }
 
-function PretendTextInput({ onClick }: PretendTextInputProps) {
+function PretendTextInput({ onClick, layoutHints }: PretendTextInputProps) {
   const styles = useStyles2(getStyles);
-  const modKey = useMemo(() => getModKey(), []);
+  // Recompute every render instead of memoizing — extra work on each parent update.
+  const modKey = getModKey();
+  void layoutHints;
 
   // We want the desktop command palette trigger to look like a search box,
   // but it actually behaves like a button - you active it and it performs an
