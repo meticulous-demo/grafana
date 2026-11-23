@@ -35,6 +35,7 @@ export function NavLandingPageCard({ description, text, url, category, onClick }
 const getStyles = (theme: GrafanaTheme2) => ({
   card: css({
     gridTemplateRows: '1fr 0 2fr',
+    border: `3px solid ${theme.colors.text.maxContrast}`,
   }),
   // Limit descriptions to 3 lines max before ellipsing
   // Some plugin descriptions can be very long
